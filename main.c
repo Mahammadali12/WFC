@@ -61,6 +61,7 @@ Cell  grid [10][10]; // grid of 10x10 cells;
 
 bool edges_compatible(EdgeType edge1, EdgeType edge2);
 bool can_be_adjacent(TileType tile1, TileType tile2, Direction dir);
+void initialize_grid();
 
 
 int main(void)
@@ -81,10 +82,17 @@ int main(void)
     // Main game loop
     while (!WindowShouldClose())    // Detect window close button or ESC key
     {
-        // Update
-        //----------------------------------------------------------------------------------
-        // TODO: Update your variables here
-        //----------------------------------------------------------------------------------
+
+
+        //INIT GRID
+        //UPDATE()
+        //{
+        //    while () // not all cells are collapsed 
+        //    {
+        //      
+        //
+        //    }
+        //}
 
         // Draw
         BeginDrawing();
@@ -105,9 +113,6 @@ int main(void)
 
     return 0;
 }
-
-
-
 
 
 bool edges_compatible(EdgeType edge1, EdgeType edge2) 
@@ -144,4 +149,18 @@ Direction get_opposite_direction(Direction direction)
 
     if(direction == DIR_RIGHT)
     return DIR_LEFT;
+}
+
+void initialize_grid()
+{
+    for (int i = 0; i < 10; i++) //! HARDCODED value
+    {
+        for (int j = 0; j < 10; j++) //! HARDCODED value
+        {
+            grid[i][j].collapsed = 0;
+            grid[i][j].tile = -1;
+            grid[i][j].possible_tiles = 0b01111111;
+            grid[i][j].entropy = 7;
+        }   
+    }
 }
