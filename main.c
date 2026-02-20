@@ -56,25 +56,28 @@ typedef struct{
     int entropy;
 }Cell;
 
-Cell  grid [10][10]; // grid of 10x10 cells;
+Cell  grid [100][100]; // grid of 10x10 cells;
 
 
 bool edges_compatible(EdgeType edge1, EdgeType edge2);
 bool can_be_adjacent(TileType tile1, TileType tile2, Direction dir);
+EdgeType get_edge(TileType tile, Direction direction);
+Direction get_opposite_direction(Direction direction);
 void initialize_grid();
 
+const int screenWidth = 900;
+const int screenHeight = 600;
 
 int main(void)
 {
     // Initialization
     //--------------------------------------------------------------------------------------
-    const int screenWidth = 800;
-    const int screenHeight = 450;
+    
 
     InitWindow(screenWidth, screenHeight, "raylib [textures] example - logo raylib");
 
     // NOTE: Textures MUST be loaded after Window initialization (OpenGL context is required)
-    Texture2D texture = LoadTexture("./profilePic.png");        // Texture loading
+    Texture2D texture = LoadTexture("./tilesets/empty-green.png");// Texture loading
 
     SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
     //---------------------------------------------------------------------------------------
@@ -89,6 +92,17 @@ int main(void)
         //{
         //    while () // not all cells are collapsed 
         //    {
+        //      min_cell = find_lowest_entropy()
+        //      
+        //      if( min_cell has zero entropy)
+        //          start again :naive restart
+        //
+        //      collapse_cell(min_cell);
+        //      
+        //      propagate_cell(min_cell);
+        //      
+        //      display_grid();
+        //      
         //      
         //
         //    }
@@ -101,7 +115,7 @@ int main(void)
 
             DrawTexture(texture, screenWidth/2 - texture.width/2, screenHeight/2 - texture.height/2, WHITE);
 
-            DrawText("this IS a texture!", 360, 370, 10, GRAY);
+            // DrawText("this IS a texture!", 360, 370, 10, GRAY);
 
         EndDrawing();
     }
@@ -153,9 +167,9 @@ Direction get_opposite_direction(Direction direction)
 
 void initialize_grid()
 {
-    for (int i = 0; i < 10; i++) //! HARDCODED value
+    for (int i = 0; i < 100; i++) //! HARDCODED value
     {
-        for (int j = 0; j < 10; j++) //! HARDCODED value
+        for (int j = 0; j < 100; j++) //! HARDCODED value
         {
             grid[i][j].collapsed = 0;
             grid[i][j].tile = -1;
@@ -164,3 +178,5 @@ void initialize_grid()
         }   
     }
 }
+
+
