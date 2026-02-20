@@ -36,6 +36,10 @@ typedef struct {
     EdgeType right;
 } TileEdges;
 
+typedef struct {
+    int x,y;
+}CellPos;
+
 
 
 const TileEdges TILE_EDGES[7] = {
@@ -56,7 +60,7 @@ typedef struct{
     int entropy;
 }Cell;
 
-Cell  grid [100][100]; // grid of 10x10 cells;
+Cell grid [100][100]; // grid of 100x100 cells;
 
 
 bool edges_compatible(EdgeType edge1, EdgeType edge2);
@@ -89,8 +93,27 @@ int main(void)
 
         //INIT GRID
         //UPDATE()
-        //{
-        //    while () // not all cells are collapsed 
+
+
+
+        //* Draw
+        //* BeginDrawing();
+        // *    ClearBackground(RAYWHITE);
+        // *    DrawTexture(texture, screenWidth/2 - texture.width/2, screenHeight/2 - texture.height/2, WHITE);
+        // *EndDrawing();
+    }
+
+    // De-Initialization
+    UnloadTexture(texture);       // Texture unloading
+
+    CloseWindow();                // Close window and OpenGL context
+
+    return 0;
+}
+
+void update()
+{
+    // while ()  not all cells are collapsed 
         //    {
         //      min_cell = find_lowest_entropy()
         //      
@@ -106,28 +129,8 @@ int main(void)
         //      
         //
         //    }
-        //}
 
-        // Draw
-        BeginDrawing();
-
-            ClearBackground(RAYWHITE);
-
-            DrawTexture(texture, screenWidth/2 - texture.width/2, screenHeight/2 - texture.height/2, WHITE);
-
-            // DrawText("this IS a texture!", 360, 370, 10, GRAY);
-
-        EndDrawing();
-    }
-
-    // De-Initialization
-    UnloadTexture(texture);       // Texture unloading
-
-    CloseWindow();                // Close window and OpenGL context
-
-    return 0;
 }
-
 
 bool edges_compatible(EdgeType edge1, EdgeType edge2) 
 {
@@ -180,3 +183,32 @@ void initialize_grid()
 }
 
 
+CellPos find_lowest_entropy_cell(Cell grid[100][100]) {
+    int min_entropy = INT32_MAX;
+    CellPos candidates[100*100];  // max possible candidates
+    int candidate_count = 0;
+    
+    for (int x = 0; x < 100; x++) {
+        for (int y = 0; y < 100; y++) {
+            if (grid[x][y].collapsed)
+                continue;
+            
+            int entropy = grid[x][y].entropy;
+            
+            if (entropy < min_entropy) {
+                // New minimum found - DISCARD old candidates
+                min_entropy = entropy;
+                candidates[0] = (CellPos){x, y};
+                candidate_count = 1;  // reset count
+            }
+            else if (entropy == min_entropy) {
+                // Tie - add to candidates
+                candidates[candidate_count++] = (CellPos){x, y};
+            }
+        }
+    }
+    
+    // Pick random from candidates
+    int idx = rand() % candidate_count;
+    return candidates[idx];
+}
