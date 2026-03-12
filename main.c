@@ -2,6 +2,7 @@
 #include <raylib.h>
 #include <stdlib.h>
 #include <stdint.h>
+
 // gcc main.c -g -o main -Wall -Wextra -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 
 
@@ -183,8 +184,7 @@ void initialize_grid()
 }
 
 
-CellPos find_lowest_entropy_cell(Cell grid[100][100])
-{
+CellPos find_lowest_entropy_cell(Cell grid[100][100]) {
     int min_entropy = INT32_MAX;
     CellPos candidates[100*100];  // max possible candidates
     int candidate_count = 0;
@@ -214,63 +214,39 @@ CellPos find_lowest_entropy_cell(Cell grid[100][100])
     return candidates[idx];
 }
 
-void propagate(Cell start_cell)
+
+void collapse_cell(Cell cell)
 {
-
-    //queue = newQueue() with start cell;
-
-    //   for each direction (TOP, BOTTOM, LEFT, RIGHT):
-    //     neighbor = get_neighbor(current, direction)
-
-
-
-    //      if neighbor is NULL (edge of grid):
-    //            continue
-    //        
-    //        if neighbor.collapsed:
-    //            continue
-    // // Calculate what tiles are valid for neighbor
-    //        old_possible = neighbor.possible
-    //        new_possible = calculate_valid_tiles(current, neighbor, direction)
-    //        
-    //        if new_possible != old_possible:
-    //            neighbor.possible = new_possible
-    //            neighbor.entropy = popcount(new_possible)
-    //            
-    //            // Neighbor changed, need to propagate further
-    //            queue.append(neighbor)
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-}
-
-
-
-int get_neighbor_x(int x, Direction dir) 
-{
-    if (dir == DIR_LEFT) return x - 1;
-    if (dir == DIR_RIGHT) return x + 1;
-    return x;
-}
-
-int get_neighbor_y(int y, Direction dir) 
-{
-    if (dir == DIR_TOP) return y - 1;
-    if (dir == DIR_BOTTOM) return y + 1;
-    return y;
-}
-
-Cell* get_neighbor(Cell* grid, int x, int y, Direction dir)
-{
-    int nx = get_neighbor_x(x, dir);
-    int ny = get_neighbor_y(y, dir);
+     // Pick random tile from possible tiles
+    // available_tiles = []
+    int available_tiles [7];
     
-    if (nx < 0 || nx >= 10 || ny < 0 || ny >= 10)
-        return NULL;
-    
-    return &grid[ny][nx];
+    for (int i = 0; i < 7; i++)
+    {
+        if (cell.possible_tiles & (1 << i))
+        {
+            available_tiles[i] = 1;
+        }
+    }
+
+    uint8_t chosen_tile_id;
+
+    for(;;)
+    {
+        chosen_tile_id = rand()%7;
+        if(available_tiles[chosen_tile_id] == 1)
+        break;
+    }
+
+    cell.collapsed = 1;
+    cell.entropy = 0;
+    cell.tile = chosen_tile_id;
+    cell.possible_tiles = (1 << chosen_tile_id); //only chosen tile is available
+
 }
+
+
+// porpagate(Cell start_cell)
+// {
+// 
+// }
