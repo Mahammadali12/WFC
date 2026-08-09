@@ -113,6 +113,7 @@ int cells_per_frame = 20;
 int gen_attempts = 0;
 int consecutive_restarts = 0;
 int collapsed_count = 0;
+bool show_heatmap = false;
 
 char notice[160];
 int notice_ticks = 0;
@@ -752,6 +753,13 @@ void handle_drawing_input(int *hover_x, int *hover_y)
 
     if (IsKeyPressed(KEY_P)) export_map();
 
+    if (IsKeyPressed(KEY_H))
+    {
+        show_heatmap = !show_heatmap;
+        snprintf(notice, sizeof(notice), "Heatmap: %s", show_heatmap ? "ON" : "OFF");
+        notice_ticks = 90;
+    }
+
     if (IsKeyPressed(KEY_Z) && IsKeyDown(KEY_LEFT_CONTROL))
     {
         if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT))
@@ -786,6 +794,13 @@ void handle_generating_input(void)
 
     if (IsKeyPressed(KEY_P)) export_map();
 
+    if (IsKeyPressed(KEY_H))
+    {
+        show_heatmap = !show_heatmap;
+        snprintf(notice, sizeof(notice), "Heatmap: %s", show_heatmap ? "ON" : "OFF");
+        notice_ticks = 90;
+    }
+
     if (!all_collapsed())
     {
         for (int i = 0; i < cells_per_frame; i++)
@@ -818,6 +833,24 @@ void draw_grid(int hover_x, int hover_y)
                                   (Color){ 255, 255, 255, cell_flash[x][y] * 25 });
                     cell_flash[x][y]--;
                 }
+            }
+            else if (show_heatmap)
+            {
+                // Heatmap: red = high entropy (many options), blue = low (forced).
+                float frac = grid[x][y].entropy / (float)TILE_COUNT;
+                if (frac < 0.0f) frac = 0.0f;
+                if (frac > 1.0f) frac = 1.0f;
+                unsigned char r = (unsigned char)(60 + 195.0f * frac);
+                unsigned char b = (unsigned char)(60 + 195.0f * (1.0f - frac));
+                DrawRectangle(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE,
+                              (Color){ r, 80, b, 220 });
+                char num[4];
+                snprintf(num, sizeof(num), "%d", grid[x][y].entropy);
+                int text_w = MeasureText(num, 10);
+                DrawText(num,
+                         x * CELL_SIZE + (CELL_SIZE - text_w) / 2,
+                         y * CELL_SIZE + (CELL_SIZE - 10) / 2,
+                         10, BLACK);
             }
             else
             {
@@ -887,7 +920,7 @@ void draw_hud(int hover_x, int hover_y)
 
     // Bottom hint bar
     DrawRectangle(8, screenHeight - 34, screenWidth - 16, 26, (Color){ 0, 0, 0, 160 });
-    DrawText("LMB paint | RMB cycle | MMB/E erase | R clear | Ctrl+Z/Shift+Z undo/redo | 1-9 load / Ctrl+1-9 save | P PNG | [ ] seed | Enter generate",
+    DrawText("LMB paint | RMB cycle | MMB/E erase | R clear | Ctrl+Z/Shift+Z undo/redo | 1-9 load / Ctrl+1-9 save | P PNG | H heatmap | [ ] seed | Enter generate",
              16, screenHeight - 30, 12, WHITE);
 
     // Notice text (above the hint bar)
@@ -903,6 +936,15 @@ void draw_hud(int hover_x, int hover_y)
              collapsed_count, GRID_SIZE * GRID_SIZE, gen_attempts,
              consecutive_restarts, cells_per_frame, GetFPS());
     DrawText(stats, screenWidth - MeasureText(stats, 16) - 16, 10, 16, WHITE);
+
+    // Heatmap mode indicator
+    if (show_heatmap)
+    {
+        const char *label = "HEATMAP (H)";
+        int w = MeasureText(label, 16);
+        DrawRectangle(screenWidth - w - 24, 30, w + 16, 22, (Color){ 180, 60, 60, 200 });
+        DrawText(label, screenWidth - w - 16, 34, 16, WHITE);
+    }
 }
 
 // --- Main ---
