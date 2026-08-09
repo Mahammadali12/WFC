@@ -57,6 +57,7 @@ EM_JS(void, wfc_download, (void *ptr, int size, const char *name),
 #define MAX_RESTARTS 50
 
 const char *TILE_TEXTURE_FILES[TILE_COUNT] = {
+    // --- Road base ---
     [TILE_HR]      = "tilesets/horizontal-line.png",
     [TILE_VR]      = "tilesets/vertical-line.png",
     [TILE_UP_L]    = "tilesets/upper-left-corner.png",
@@ -64,17 +65,70 @@ const char *TILE_TEXTURE_FILES[TILE_COUNT] = {
     [TILE_LOW_L]   = "tilesets/lower-left-corner.png",
     [TILE_LOW_R]   = "tilesets/lower-right-corner.png",
     [TILE_EMPTY]   = "tilesets/empty-green.png",
+    // --- Crossings + T-junctions ---
     [TILE_CROSS]   = "tilesets/crossing.png",
     [TILE_T_UP]    = "tilesets/t-up.png",
     [TILE_T_DOWN]  = "tilesets/t-down.png",
     [TILE_T_LEFT]  = "tilesets/t-left.png",
     [TILE_T_RIGHT] = "tilesets/t-right.png",
+    // --- Water base ---
+    [TILE_WATER_HR]      = "tilesets/water-hr.png",
+    [TILE_WATER_VR]      = "tilesets/water-vr.png",
+    [TILE_WATER_UP_L]    = "tilesets/water-up-l.png",
+    [TILE_WATER_UP_R]    = "tilesets/water-up-r.png",
+    [TILE_WATER_LOW_L]   = "tilesets/water-low-l.png",
+    [TILE_WATER_LOW_R]   = "tilesets/water-low-r.png",
+    // --- Road straight bank variants ---
+    [TILE_HR_BANK_TOP]    = "tilesets/hr-bank-top.png",
+    [TILE_HR_BANK_BOTTOM] = "tilesets/hr-bank-bottom.png",
+    [TILE_HR_BANK_BOTH]   = "tilesets/hr-bank-both.png",
+    [TILE_VR_BANK_LEFT]   = "tilesets/vr-bank-left.png",
+    [TILE_VR_BANK_RIGHT]  = "tilesets/vr-bank-right.png",
+    [TILE_VR_BANK_BOTH]   = "tilesets/vr-bank-both.png",
+    // --- Water straight bank variants ---
+    [TILE_WATER_HR_BANK_TOP]    = "tilesets/water-hr-bank-top.png",
+    [TILE_WATER_HR_BANK_BOTTOM] = "tilesets/water-hr-bank-bottom.png",
+    [TILE_WATER_HR_BANK_BOTH]   = "tilesets/water-hr-bank-both.png",
+    [TILE_WATER_VR_BANK_LEFT]   = "tilesets/water-vr-bank-left.png",
+    [TILE_WATER_VR_BANK_RIGHT]  = "tilesets/water-vr-bank-right.png",
+    [TILE_WATER_VR_BANK_BOTH]   = "tilesets/water-vr-bank-both.png",
+    // --- Road corner bank variants ---
+    [TILE_UP_L_BANK_TOP]      = "tilesets/up-l-bank-top.png",
+    [TILE_UP_L_BANK_LEFT]     = "tilesets/up-l-bank-left.png",
+    [TILE_UP_L_BANK_BOTH]     = "tilesets/up-l-bank-both.png",
+    [TILE_UP_R_BANK_TOP]      = "tilesets/up-r-bank-top.png",
+    [TILE_UP_R_BANK_RIGHT]    = "tilesets/up-r-bank-right.png",
+    [TILE_UP_R_BANK_BOTH]     = "tilesets/up-r-bank-both.png",
+    [TILE_LOW_L_BANK_BOTTOM]  = "tilesets/low-l-bank-bottom.png",
+    [TILE_LOW_L_BANK_LEFT]    = "tilesets/low-l-bank-left.png",
+    [TILE_LOW_L_BANK_BOTH]    = "tilesets/low-l-bank-both.png",
+    [TILE_LOW_R_BANK_BOTTOM]  = "tilesets/low-r-bank-bottom.png",
+    [TILE_LOW_R_BANK_RIGHT]   = "tilesets/low-r-bank-right.png",
+    [TILE_LOW_R_BANK_BOTH]    = "tilesets/low-r-bank-both.png",
+    // --- Water corner bank variants ---
+    [TILE_WATER_UP_L_BANK_TOP]      = "tilesets/water-up-l-bank-top.png",
+    [TILE_WATER_UP_L_BANK_LEFT]     = "tilesets/water-up-l-bank-left.png",
+    [TILE_WATER_UP_L_BANK_BOTH]     = "tilesets/water-up-l-bank-both.png",
+    [TILE_WATER_UP_R_BANK_TOP]      = "tilesets/water-up-r-bank-top.png",
+    [TILE_WATER_UP_R_BANK_RIGHT]    = "tilesets/water-up-r-bank-right.png",
+    [TILE_WATER_UP_R_BANK_BOTH]     = "tilesets/water-up-r-bank-both.png",
+    [TILE_WATER_LOW_L_BANK_BOTTOM]  = "tilesets/water-low-l-bank-bottom.png",
+    [TILE_WATER_LOW_L_BANK_LEFT]    = "tilesets/water-low-l-bank-left.png",
+    [TILE_WATER_LOW_L_BANK_BOTH]    = "tilesets/water-low-l-bank-both.png",
+    [TILE_WATER_LOW_R_BANK_BOTTOM]  = "tilesets/water-low-r-bank-bottom.png",
+    [TILE_WATER_LOW_R_BANK_RIGHT]   = "tilesets/water-low-r-bank-right.png",
+    [TILE_WATER_LOW_R_BANK_BOTH]    = "tilesets/water-low-r-bank-both.png",
+    // --- Grass bank tiles ---
+    [TILE_GRASS_BANK_TOP]    = "tilesets/grass-bank-top.png",
+    [TILE_GRASS_BANK_BOTTOM] = "tilesets/grass-bank-bottom.png",
+    [TILE_GRASS_BANK_LEFT]   = "tilesets/grass-bank-left.png",
+    [TILE_GRASS_BANK_RIGHT]  = "tilesets/grass-bank-right.png",
 };
 
 typedef struct {
     int collapsed;
     TileType tile;
-    uint32_t possible_tiles;
+    uint64_t possible_tiles;
     int entropy;
 } Cell;
 
@@ -416,7 +470,7 @@ void initialize_grid(void)
         {
             grid[x][y].collapsed = 0;
             grid[x][y].tile = TILE_EMPTY;
-            grid[x][y].possible_tiles = ((1u << TILE_COUNT) - 1);
+            grid[x][y].possible_tiles = ((1ULL << TILE_COUNT) - 1);
             grid[x][y].entropy = TILE_COUNT;
         }
 }
@@ -426,7 +480,7 @@ void place_seed(int x, int y, TileType tile)
     if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return;
     grid[x][y].collapsed = 1;
     grid[x][y].tile = tile;
-    grid[x][y].possible_tiles = (1u << tile);
+    grid[x][y].possible_tiles = (1ULL << tile);
     grid[x][y].entropy = 0;
 }
 
@@ -465,7 +519,7 @@ void erase_seed(int x, int y)
     push_undo();
     grid[x][y].collapsed = 0;
     grid[x][y].tile = TILE_EMPTY;
-    grid[x][y].possible_tiles = ((1u << TILE_COUNT) - 1);
+    grid[x][y].possible_tiles = ((1ULL << TILE_COUNT) - 1);
     grid[x][y].entropy = TILE_COUNT;
     for (int i = 0; i < seed_count; i++)
     {
@@ -554,7 +608,7 @@ void collapse_cell(int x, int y)
     cell->collapsed = 1;
     cell->entropy = 0;
     cell->tile = chosen;
-    cell->possible_tiles = (1u << chosen);
+    cell->possible_tiles = (1ULL << chosen);
     cell_flash[x][y] = 10;
 }
 
@@ -595,13 +649,13 @@ void propagate_cell(CellPos start)
             Cell *neighbor = &grid[neighbor_pos.x][neighbor_pos.y];
             if (neighbor->collapsed) continue;
 
-            uint32_t new_possible = 0;
+            uint64_t new_possible = 0;
             for (int t = 0; t < TILE_COUNT; t++)
             {
-                if (neighbor->possible_tiles & (1u << t))
+                if (neighbor->possible_tiles & (1ULL << t))
                 {
                     if (can_be_adjacent(cell->tile, (TileType)t, dir))
-                        new_possible |= (1u << t);
+                        new_possible |= (1ULL << t);
                 }
             }
 

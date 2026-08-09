@@ -8,7 +8,7 @@
 int main(void)
 {
     // --- Edge table sanity ---
-    assert(TILE_COUNT == 12);
+    assert(TILE_COUNT == 58);
     assert(get_edge(TILE_HR, DIR_LEFT) == EDGE_ROAD);
     assert(get_edge(TILE_HR, DIR_RIGHT) == EDGE_ROAD);
     assert(get_edge(TILE_HR, DIR_TOP) == EDGE_EMPTY);
@@ -90,21 +90,21 @@ int main(void)
 
     // --- Popcount ---
     assert(tile_popcount(0) == 0);
-    assert(tile_popcount(1u << TILE_T_RIGHT) == 1);
-    assert(tile_popcount(((1u << TILE_COUNT) - 1)) == TILE_COUNT);
+    assert(tile_popcount(1ULL << TILE_T_RIGHT) == 1);
+    assert(tile_popcount(((1ULL << TILE_COUNT) - 1)) == TILE_COUNT);
 
     // --- Weighted pick is deterministic for a fixed seed ---
     srand(12345);
-    TileType p1 = pick_weighted_tile(((1u << TILE_COUNT) - 1));
+    TileType p1 = pick_weighted_tile(((1ULL << TILE_COUNT) - 1));
     srand(12345);
-    TileType p2 = pick_weighted_tile(((1u << TILE_COUNT) - 1));
+    TileType p2 = pick_weighted_tile(((1ULL << TILE_COUNT) - 1));
     assert(p1 == p2);
 
     // A single-candidate mask must always pick that tile
     srand(999);
-    assert(pick_weighted_tile((1u << TILE_CROSS)) == TILE_CROSS);
+    assert(pick_weighted_tile((1ULL << TILE_CROSS)) == TILE_CROSS);
     srand(1);
-    assert(pick_weighted_tile((1u << TILE_EMPTY)) == TILE_EMPTY);
+    assert(pick_weighted_tile((1ULL << TILE_EMPTY)) == TILE_EMPTY);
 
     // All weights are positive (needed for the cumulative pick)
     for (int t = 0; t < TILE_COUNT; t++)
