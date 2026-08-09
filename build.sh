@@ -1,4 +1,6 @@
 #!/bin/sh
 set -e
 
-gcc main.c queue.c -g -o bin/main -Wall -Wextra -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
+mkdir -p build
+
+gcc src/main.c src/queue.c src/tiles.c -g -o build/main -Wall -Wextra -Iinclude -lraylib -lGL -lm -lpthread -ldl -lrt -lX11

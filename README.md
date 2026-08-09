@@ -4,15 +4,15 @@ An interactive road-map generator using [Wave Function Collapse](https://en.wiki
 Paint a starting pattern of roads, hit **Enter**, and watch the algorithm fill in a
 coherent city-style grid that respects the edges you drew.
 
-C + [raylib](https://www.raylib.com/). Single source file. Runs on the desktop
+C + [raylib](https://www.raylib.com/). Single source file (now split into `src/`). Runs on the desktop
 and in the browser (Wasm via Emscripten).
 
 ![screenshot](docs/screenshot.png)
 
 ## What it does
 
-- 12 tile types: horizontal/vertical roads, four corners, an empty grass tile, a 4-way crossing, and four T-junctions.
-- Edge-based adjacency (each tile declares which of its four sides are road or empty; neighbours must agree on the shared edge).
+- 58 tile types: horizontal/vertical roads, four corners, an empty grass tile, a 4-way crossing, four T-junctions, water variants, bank variants, and grass bank strips.
+- Edge-based adjacency (each tile declares which of its four sides are road, empty, water, or bank; neighbours must agree on the shared edge).
 - Weighted collapse: straights and empty dominate, so the output reads as a road network rather than visual noise.
 - Deterministic: the same seed always produces the same map. Step the seed with `[` and `]`.
 - Auto-recovery: contradictions restart from the same seeds, and after 50 consecutive restarts the oldest seed is dropped automatically.
@@ -46,18 +46,18 @@ and in the browser (Wasm via Emscripten).
 
 ### Desktop
 ```sh
-make            # builds bin/main
+make            # builds build/main
 make run        # build + run
 make test       # build + run unit tests
 make clean
 ```
 
 Requires the raylib development headers (Debian/Ubuntu: `apt install libraylib-dev`).
-Run from the repo root — tile textures are loaded from relative `tilesets/*.png` paths.
+Run from the repo root — tile textures are loaded from relative `assets/tilesets/*.png` paths.
 
 ### Web (Wasm)
 ```sh
-make web        # one-time: install emsdk per AGENTS.md, then run build-web.sh
+make web        # one-time: install emsdk per docs/AGENTS.md, then run build-web.sh
 ```
 The output is `web/index.html` + `index.js` + `index.wasm` + `index.data`.
 Serve with any static server: `python3 -m http.server 8080` → <http://localhost:8080/web/>.
@@ -67,15 +67,16 @@ You can pre-populate the drawing via a URL parameter:
 
 ## Architecture
 
-See [AGENTS.md](AGENTS.md) for the developer-facing overview (build flags,
+See [docs/AGENTS.md](docs/AGENTS.md) for the developer-facing overview (build flags,
 file layout, how the queue/propagation works, etc.).
 
 In short:
-- `main.c` — game loop, drawing, input
-- `tiles.c` / `tiles.h` — adjacency table, tile weights, weighted pick, popcount
-- `queue.c` / `queue.h` — BFS queue used by `propagate_cell`
-- `tests/test.c` — 42 assertions over the adjacency table (symmetry included)
+- `src/main.c` — game loop, drawing, input
+- `src/tiles.c` / `include/tiles.h` — adjacency table, tile weights, weighted pick, popcount
+- `src/queue.c` / `include/queue.h` — BFS queue used by `propagate_cell`
+- `tests/test.c` — 58+ assertions over the adjacency table (symmetry included)
 - `tools/make_tiles.c` — procedurally generates the crossing + 4 T-junction tile art
+- `tools/make_tiles_py.py` — generates the 46 water/bank tile art
 
 ## Credits
 

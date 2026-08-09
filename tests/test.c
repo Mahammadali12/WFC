@@ -1,5 +1,5 @@
-// Unit tests for the tile adjacency/weight logic (tiles.c). No raylib needed.
-// Build: make test   (gcc tests/test.c tiles.c queue.c -lm)
+// Unit tests for the tile adjacency/weight logic (src/tiles.c). No raylib needed.
+// Build: make test   (gcc tests/test.c src/tiles.c src/queue.c -lm)
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -204,6 +204,7 @@ int main(void)
         if (t == TILE_GRASS_BANK_TOP && banks != 1) assert(0 && "GRASS_BANK_TOP should have 1 bank");
     }
 
-    printf("All %d tests passed.\n", 73);
+    printf("All %d tests passed.
+", 73);
     return 0;
 }

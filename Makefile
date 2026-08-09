@@ -1,30 +1,35 @@
 CC       ?= gcc
-CFLAGS   := -Wall -Wextra
+CFLAGS   := -Wall -Wextra -Iinclude
 LDFLAGS  := -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 
-SOURCES  := main.c queue.c tiles.c
-HEADERS  := queue.h tiles.h
+SRC_DIR  := src
+INC_DIR  := include
+TST_DIR  := tests
+TL_DIR   := tools
+BLD_DIR  := build
 
-BIN      := bin
-MAIN     := $(BIN)/main
-TEST     := $(BIN)/test
-GEN      := $(BIN)/make_tiles
+SOURCES  := $(SRC_DIR)/main.c $(SRC_DIR)/queue.c $(SRC_DIR)/tiles.c
+HEADERS  := $(INC_DIR)/queue.h $(INC_DIR)/tiles.h
 
-.PHONY: all run web test tiles clean
+MAIN     := $(BLD_DIR)/main
+TEST     := $(BLD_DIR)/test
+GEN      := $(BLD_DIR)/make_tiles
 
-all: $(MAIN)
+.PHONY: all run web test tiles clean dirs
 
-$(BIN):
-	mkdir -p $(BIN)
+all: dirs $(MAIN)
 
-$(MAIN): $(SOURCES) $(HEADERS) | $(BIN)
+dirs:
+	mkdir -p $(BLD_DIR)
+
+$(MAIN): $(SOURCES) $(HEADERS) | dirs
 	$(CC) $(CFLAGS) -g -o $@ $(SOURCES) $(LDFLAGS)
 
-$(GEN): tools/make_tiles.c | $(BIN)
-	$(CC) $(CFLAGS) -g -o $@ tools/make_tiles.c $(LDFLAGS)
+$(GEN): $(TL_DIR)/make_tiles.c | dirs
+	$(CC) $(CFLAGS) -g -o $@ $< $(LDFLAGS)
 
-$(TEST): tests/test.c tiles.c queue.c | $(BIN)
-	$(CC) $(CFLAGS) -g -I. -o $@ tests/test.c tiles.c queue.c -lm
+$(TEST): $(TST_DIR)/test.c $(SRC_DIR)/tiles.c $(SRC_DIR)/queue.c $(HEADERS) | dirs
+	$(CC) $(CFLAGS) -g -o $@ $< $(SRC_DIR)/tiles.c $(SRC_DIR)/queue.c -lm
 
 run: $(MAIN)
 	./$(MAIN)
@@ -39,4 +44,4 @@ web:
 	./build-web.sh
 
 clean:
-	rm -rf $(BIN)
+	rm -rf $(BLD_DIR)
