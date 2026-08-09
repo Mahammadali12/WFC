@@ -23,6 +23,11 @@ EM_JS(int, wfc_local_get, (const char *key, char *out, int max),
     return 1;
 });
 
+EM_JS(void, js_get_window_size, (int *w, int *h), {
+    setValue(w, window.innerWidth, 'i32');
+    setValue(h, window.innerHeight, 'i32');
+});
+
 EM_JS(void, wfc_local_set, (const char *key, const char *val),
 {
     localStorage.setItem(UTF8ToString(key), UTF8ToString(val));
@@ -48,7 +53,7 @@ EM_JS(void, wfc_download, (void *ptr, int size, const char *name),
     a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
 });
-#if defined(__EMSCRIPTEN__)
+
 EM_JS(void, js_hud_update, (
     const char* brush,
     int seeds,
@@ -64,7 +69,7 @@ EM_JS(void, js_hud_update, (
     int notice_ticks
 ), {
     var elBrush = document.getElementById('hud-brush');
-    if (!elBrush) return;  // DOM not ready yet, skip silently
+    if (!elBrush) return;
 
     elBrush.textContent = UTF8ToString(brush);
     document.getElementById('hud-seeds').textContent = seeds;
@@ -86,16 +91,9 @@ EM_JS(void, js_hud_update, (
     }
 });
 #endif
-#endif
 
-#define GRID_SIZE 50
-#define CELL_SIZE 28
-#define MAX_SEEDS (GRID_SIZE * GRID_SIZE)
-#define UNDO_DEPTH 64
-#define MAX_RESTARTS 50
-
+// --- Tile texture file table ---
 const char *TILE_TEXTURE_FILES[TILE_COUNT] = {
-    // --- Road base ---
     [TILE_HR]      = "tilesets/horizontal-line.png",
     [TILE_VR]      = "tilesets/vertical-line.png",
     [TILE_UP_L]    = "tilesets/upper-left-corner.png",
@@ -104,14 +102,12 @@ const char *TILE_TEXTURE_FILES[TILE_COUNT] = {
     [TILE_LOW_R]   = "tilesets/lower-right-corner.png",
     [TILE_EMPTY]   = "tilesets/empty-green.png",
 
-    // --- Crossings + T-junctions ---
     [TILE_CROSS]   = "tilesets/crossing.png",
     [TILE_T_UP]    = "tilesets/t-up.png",
     [TILE_T_DOWN]  = "tilesets/t-down.png",
     [TILE_T_LEFT]  = "tilesets/t-left.png",
     [TILE_T_RIGHT] = "tilesets/t-right.png",
 
-    // --- Water base ---
     [TILE_WATER_HR]      = "tilesets/water-hr.png",
     [TILE_WATER_VR]      = "tilesets/water-vr.png",
     [TILE_WATER_UP_L]    = "tilesets/water-up-l.png",
@@ -119,7 +115,6 @@ const char *TILE_TEXTURE_FILES[TILE_COUNT] = {
     [TILE_WATER_LOW_L]   = "tilesets/water-low-l.png",
     [TILE_WATER_LOW_R]   = "tilesets/water-low-r.png",
 
-    // --- Road straight bank variants -> reuse base road PNGs ---
     [TILE_HR_BANK_TOP]    = "tilesets/horizontal-line.png",
     [TILE_HR_BANK_BOTTOM] = "tilesets/horizontal-line.png",
     [TILE_HR_BANK_BOTH]   = "tilesets/horizontal-line.png",
@@ -127,7 +122,6 @@ const char *TILE_TEXTURE_FILES[TILE_COUNT] = {
     [TILE_VR_BANK_RIGHT]  = "tilesets/vertical-line.png",
     [TILE_VR_BANK_BOTH]   = "tilesets/vertical-line.png",
 
-    // --- Water straight bank variants -> reuse base water PNGs ---
     [TILE_WATER_HR_BANK_TOP]    = "tilesets/water-hr.png",
     [TILE_WATER_HR_BANK_BOTTOM] = "tilesets/water-hr.png",
     [TILE_WATER_HR_BANK_BOTH]   = "tilesets/water-hr.png",
@@ -135,7 +129,6 @@ const char *TILE_TEXTURE_FILES[TILE_COUNT] = {
     [TILE_WATER_VR_BANK_RIGHT]  = "tilesets/water-vr.png",
     [TILE_WATER_VR_BANK_BOTH]   = "tilesets/water-vr.png",
 
-    // --- Road corner bank variants -> reuse base corner PNGs ---
     [TILE_UP_L_BANK_TOP]      = "tilesets/upper-left-corner.png",
     [TILE_UP_L_BANK_LEFT]     = "tilesets/upper-left-corner.png",
     [TILE_UP_L_BANK_BOTH]     = "tilesets/upper-left-corner.png",
@@ -149,7 +142,6 @@ const char *TILE_TEXTURE_FILES[TILE_COUNT] = {
     [TILE_LOW_R_BANK_RIGHT]   = "tilesets/lower-right-corner.png",
     [TILE_LOW_R_BANK_BOTH]    = "tilesets/lower-right-corner.png",
 
-    // --- Water corner bank variants -> reuse base water-corner PNGs ---
     [TILE_WATER_UP_L_BANK_TOP]      = "tilesets/water-up-l.png",
     [TILE_WATER_UP_L_BANK_LEFT]     = "tilesets/water-up-l.png",
     [TILE_WATER_UP_L_BANK_BOTH]     = "tilesets/water-up-l.png",
@@ -163,24 +155,19 @@ const char *TILE_TEXTURE_FILES[TILE_COUNT] = {
     [TILE_WATER_LOW_R_BANK_RIGHT]   = "tilesets/water-low-r.png",
     [TILE_WATER_LOW_R_BANK_BOTH]    = "tilesets/water-low-r.png",
 
-    // --- Grass bank tiles -> reuse empty-green.png ---
     [TILE_GRASS_BANK_TOP]    = "tilesets/empty-green.png",
     [TILE_GRASS_BANK_BOTTOM] = "tilesets/empty-green.png",
     [TILE_GRASS_BANK_LEFT]   = "tilesets/empty-green.png",
     [TILE_GRASS_BANK_RIGHT]  = "tilesets/empty-green.png",
 };
 
-
-
+// --- Structs ---
 typedef struct {
     int collapsed;
     TileType tile;
     uint64_t possible_tiles;
     int entropy;
 } Cell;
-
-Cell grid[GRID_SIZE][GRID_SIZE];
-uint8_t cell_flash[GRID_SIZE][GRID_SIZE];
 
 typedef struct {
     int x;
@@ -193,12 +180,25 @@ typedef struct {
     int len;
 } SeedSnapshot;
 
-Seed seeds[MAX_SEEDS];
+// --- Dynamic grid config ---
+int GRID_W = 50;
+int GRID_H = 50;
+int CELL_SIZE = 28;
+int max_seeds = 2500;
+
+// --- Dynamic arrays ---
+Cell *grid = NULL;
+uint8_t *cell_flash = NULL;
+Seed *seeds = NULL;
+
+#define CELL(x, y)     (grid[(y) * GRID_W + (x)])
+#define FLASH(x, y)    (cell_flash[(y) * GRID_W + (x)])
+
 int seed_count = 0;
 int current_brush = TILE_HR;
 
-const int screenWidth = GRID_SIZE * CELL_SIZE;
-const int screenHeight = GRID_SIZE * CELL_SIZE;
+int screenWidth = 1400;
+int screenHeight = 1400;
 
 Texture2D tile_textures[TILE_COUNT];
 
@@ -219,33 +219,14 @@ bool show_heatmap = false;
 char notice[160];
 int notice_ticks = 0;
 
+#define UNDO_DEPTH 64
+#define MAX_RESTARTS 50
+
 SeedSnapshot undo_stack[UNDO_DEPTH];
 SeedSnapshot redo_stack[UNDO_DEPTH];
 int undo_top = 0;
 int redo_top = 0;
 bool undo_suppress = false;
-
-
-
-static void update_web_hud(void)
-{
-#if defined(__EMSCRIPTEN__)
-    js_hud_update(
-        TILE_NAMES[current_brush],
-        seed_count,
-        wfc_seed,
-        collapsed_count,
-        GRID_SIZE * GRID_SIZE,
-        gen_attempts,
-        consecutive_restarts,
-        GetFPS(),
-        cells_per_frame,
-        show_heatmap,
-        notice,
-        notice_ticks
-    );
-#endif
-}
 
 // --- Forward declarations ---
 CellPos get_neighbor(CellPos pos, Direction dir);
@@ -278,6 +259,26 @@ void copy_seeds_to_clipboard(void);
 void paste_seeds_from_clipboard(void);
 void undo_one(void);
 void redo_one(void);
+
+static void update_web_hud(void)
+{
+#if defined(__EMSCRIPTEN__)
+    js_hud_update(
+        TILE_NAMES[current_brush],
+        seed_count,
+        wfc_seed,
+        collapsed_count,
+        GRID_W * GRID_H,
+        gen_attempts,
+        consecutive_restarts,
+        GetFPS(),
+        cells_per_frame,
+        show_heatmap,
+        notice,
+        notice_ticks
+    );
+#endif
+}
 
 // --- Snapshot helpers ---
 
@@ -384,11 +385,11 @@ void parse_seed_string(const char *text)
     if (!text || text[0] == '\0') return;
     clear_seeds();
     const char *p = text;
-    while (*p && seed_count < MAX_SEEDS)
+    while (*p && seed_count < max_seeds)
     {
         int x, y, t;
         if (sscanf(p, "%d,%d,%d", &x, &y, &t) == 3 &&
-            x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE &&
+            x >= 0 && x < GRID_W && y >= 0 && y < GRID_H &&
             t >= 0 && t < TILE_COUNT)
         {
             place_seed(x, y, (TileType)t);
@@ -398,13 +399,6 @@ void parse_seed_string(const char *text)
         p = semi + 1;
     }
 }
-
-// --- Clipboard (raylib) ---
-//
-// raylib's SetClipboardText / GetClipboardText work on the desktop, and
-// Emscripten's raylib web backend wires them through to the browser
-// clipboard. The returned pointer from GetClipboardText is owned by raylib
-// (do not free).
 
 void copy_seeds_to_clipboard(void)
 {
@@ -431,7 +425,6 @@ void paste_seeds_from_clipboard(void)
         notice_ticks = 120;
         return;
     }
-    // Spot-check: a valid seed string has the form "x,y,t;x,y,t;..."
     if (!strchr(text, ',') || !strchr(text, ';'))
     {
         snprintf(notice, sizeof(notice), "Clipboard not a seed pattern");
@@ -527,12 +520,12 @@ void export_map(void)
     RenderTexture2D rt = LoadRenderTexture(screenWidth, screenHeight);
     BeginTextureMode(rt);
     ClearBackground((Color){ 34, 46, 38, 255 });
-    for (int x = 0; x < GRID_SIZE; x++)
-        for (int y = 0; y < GRID_SIZE; y++)
+    for (int x = 0; x < GRID_W; x++)
+        for (int y = 0; y < GRID_H; y++)
         {
             Rectangle dest = { x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE };
-            TileType t = grid[x][y].collapsed ? grid[x][y].tile : TILE_EMPTY;
-            Color tint = grid[x][y].collapsed ? WHITE : (Color){ 255, 255, 255, 60 };
+            TileType t = CELL(x, y).collapsed ? CELL(x, y).tile : TILE_EMPTY;
+            Color tint = CELL(x, y).collapsed ? WHITE : (Color){ 255, 255, 255, 60 };
             DrawTexturePro(tile_textures[t],
                            (Rectangle){ 0, 0, tile_textures[t].width, tile_textures[t].height },
                            dest, (Vector2){ 0, 0 }, 0, tint);
@@ -586,30 +579,30 @@ void handle_url_seeds(void)
 
 void initialize_grid(void)
 {
-    for (int x = 0; x < GRID_SIZE; x++)
-        for (int y = 0; y < GRID_SIZE; y++)
+    for (int x = 0; x < GRID_W; x++)
+        for (int y = 0; y < GRID_H; y++)
         {
-            grid[x][y].collapsed = 0;
-            grid[x][y].tile = TILE_EMPTY;
-            grid[x][y].possible_tiles = ((1ULL << TILE_COUNT) - 1);
-            grid[x][y].entropy = TILE_COUNT;
+            CELL(x, y).collapsed = 0;
+            CELL(x, y).tile = TILE_EMPTY;
+            CELL(x, y).possible_tiles = ((1ULL << TILE_COUNT) - 1);
+            CELL(x, y).entropy = TILE_COUNT;
         }
 }
 
 void place_seed(int x, int y, TileType tile)
 {
-    if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return;
-    grid[x][y].collapsed = 1;
-    grid[x][y].tile = tile;
-    grid[x][y].possible_tiles = (1ULL << tile);
-    grid[x][y].entropy = 0;
+    if (x < 0 || x >= GRID_W || y < 0 || y >= GRID_H) return;
+    CELL(x, y).collapsed = 1;
+    CELL(x, y).tile = tile;
+    CELL(x, y).possible_tiles = (1ULL << tile);
+    CELL(x, y).entropy = 0;
 }
 
 void paint_seed(int x, int y, TileType tile)
 {
-    if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return;
+    if (x < 0 || x >= GRID_W || y < 0 || y >= GRID_H) return;
     if (!undo_suppress) push_undo();
-    if (grid[x][y].collapsed)
+    if (CELL(x, y).collapsed)
     {
         for (int i = 0; i < seed_count; i++)
         {
@@ -624,7 +617,7 @@ void paint_seed(int x, int y, TileType tile)
         return;
     }
     place_seed(x, y, tile);
-    if (seed_count < MAX_SEEDS)
+    if (seed_count < max_seeds)
     {
         seeds[seed_count].x = x;
         seeds[seed_count].y = y;
@@ -635,13 +628,13 @@ void paint_seed(int x, int y, TileType tile)
 
 void erase_seed(int x, int y)
 {
-    if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return;
-    if (!grid[x][y].collapsed) return;
+    if (x < 0 || x >= GRID_W || y < 0 || y >= GRID_H) return;
+    if (!CELL(x, y).collapsed) return;
     push_undo();
-    grid[x][y].collapsed = 0;
-    grid[x][y].tile = TILE_EMPTY;
-    grid[x][y].possible_tiles = ((1ULL << TILE_COUNT) - 1);
-    grid[x][y].entropy = TILE_COUNT;
+    CELL(x, y).collapsed = 0;
+    CELL(x, y).tile = TILE_EMPTY;
+    CELL(x, y).possible_tiles = ((1ULL << TILE_COUNT) - 1);
+    CELL(x, y).entropy = TILE_COUNT;
     for (int i = 0; i < seed_count; i++)
     {
         if (seeds[i].x == x && seeds[i].y == y)
@@ -671,21 +664,20 @@ void redraw_seeds(void)
 void apply_seeds(void)
 {
     redraw_seeds();
-    for (int x = 0; x < GRID_SIZE; x++)
-        for (int y = 0; y < GRID_SIZE; y++)
-            if (grid[x][y].collapsed)
+    for (int x = 0; x < GRID_W; x++)
+        for (int y = 0; y < GRID_H; y++)
+            if (CELL(x, y).collapsed)
                 propagate_cell((CellPos){ x, y });
 }
 
 bool all_collapsed(void)
 {
-    for (int x = 0; x < GRID_SIZE; x++)
-        for (int y = 0; y < GRID_SIZE; y++)
-            if (!grid[x][y].collapsed) return false;
+    for (int x = 0; x < GRID_W; x++)
+        for (int y = 0; y < GRID_H; y++)
+            if (!CELL(x, y).collapsed) return false;
     return true;
 }
 
-// Simple deterministic noise for tiebreaking (same seed -> same map).
 static uint32_t hash_noise(int x, int y, uint32_t seed)
 {
     uint32_t h = seed;
@@ -703,12 +695,12 @@ CellPos find_lowest_entropy_cell(void)
     CellPos best = { 0, 0 };
     uint32_t best_hash = UINT32_MAX;
 
-    for (int x = 0; x < GRID_SIZE; x++)
+    for (int x = 0; x < GRID_W; x++)
     {
-        for (int y = 0; y < GRID_SIZE; y++)
+        for (int y = 0; y < GRID_H; y++)
         {
-            if (grid[x][y].collapsed) continue;
-            int entropy = grid[x][y].entropy;
+            if (CELL(x, y).collapsed) continue;
+            int entropy = CELL(x, y).entropy;
             if (entropy > min_entropy) continue;
             uint32_t h = hash_noise(x, y, wfc_seed);
             if (entropy < min_entropy || h < best_hash)
@@ -724,13 +716,13 @@ CellPos find_lowest_entropy_cell(void)
 
 void collapse_cell(int x, int y)
 {
-    Cell *cell = &grid[x][y];
+    Cell *cell = &CELL(x, y);
     TileType chosen = pick_weighted_tile(cell->possible_tiles);
     cell->collapsed = 1;
     cell->entropy = 0;
     cell->tile = chosen;
     cell->possible_tiles = (1ULL << chosen);
-    cell_flash[x][y] = 10;
+    FLASH(x, y) = 10;
 }
 
 CellPos get_neighbor(CellPos pos, Direction dir)
@@ -748,7 +740,7 @@ CellPos get_neighbor(CellPos pos, Direction dir)
 void propagate_cell(CellPos start)
 {
     Queue q;
-    if (!queue_init(&q, GRID_SIZE * GRID_SIZE * 16)) return;
+    if (!queue_init(&q, GRID_W * GRID_H * 16)) return;
     queue_enqueue(&q, start);
 
     while (!queue_is_empty(&q))
@@ -756,20 +748,20 @@ void propagate_cell(CellPos start)
         CellPos current;
         queue_dequeue(&q, &current);
 
-        Cell *cell = &grid[current.x][current.y];
+        Cell *cell = &CELL(current.x, current.y);
         if (cell->entropy == 0 && !cell->collapsed)
-            continue;  // dead cell, nothing to propagate
+            continue;
 
         for (int d = 0; d < 4; d++)
         {
             Direction dir = (Direction)d;
             CellPos neighbor_pos = get_neighbor(current, dir);
 
-            if (neighbor_pos.x < 0 || neighbor_pos.x >= GRID_SIZE ||
-                neighbor_pos.y < 0 || neighbor_pos.y >= GRID_SIZE)
+            if (neighbor_pos.x < 0 || neighbor_pos.x >= GRID_W ||
+                neighbor_pos.y < 0 || neighbor_pos.y >= GRID_H)
                 continue;
 
-            Cell *neighbor = &grid[neighbor_pos.x][neighbor_pos.y];
+            Cell *neighbor = &CELL(neighbor_pos.x, neighbor_pos.y);
             if (neighbor->collapsed)
                 continue;
 
@@ -779,7 +771,6 @@ void propagate_cell(CellPos start)
                 if (!(neighbor->possible_tiles & (1ULL << t)))
                     continue;
 
-                // Is ANY tile in cell's possible set compatible with neighbor tile t?
                 bool ok = false;
                 for (int s = 0; s < TILE_COUNT; s++)
                 {
@@ -814,7 +805,7 @@ void update(void)
 
     CellPos min_cell = find_lowest_entropy_cell();
 
-    if (grid[min_cell.x][min_cell.y].entropy == 0)
+    if (CELL(min_cell.x, min_cell.y).entropy == 0)
     {
         consecutive_restarts++;
         gen_attempts++;
@@ -880,7 +871,7 @@ bool mouse_to_cell(int *out_x, int *out_y)
     Vector2 m = GetMousePosition();
     int x = (int)(m.x / CELL_SIZE);
     int y = (int)(m.y / CELL_SIZE);
-    if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE)
+    if (x < 0 || x >= GRID_W || y < 0 || y >= GRID_H)
         return false;
     *out_x = x;
     *out_y = y;
@@ -888,24 +879,51 @@ bool mouse_to_cell(int *out_x, int *out_y)
 }
 
 // --- Strip / brush picker ---
-
 #define STRIP_X 8
-#define STRIP_Y 122
+#define STRIP_Y 8
 #define STRIP_ICON 34
 #define STRIP_STEP 40
+#define STRIP_ICONS_PER_ROW 30
 
 bool point_on_strip(Vector2 m)
 {
-    return m.x >= STRIP_X && m.x < STRIP_X + TILE_COUNT * STRIP_STEP &&
-           m.y >= STRIP_Y && m.y < STRIP_Y + STRIP_ICON;
+    int rows = (TILE_COUNT + STRIP_ICONS_PER_ROW - 1) / STRIP_ICONS_PER_ROW;
+    float width = STRIP_ICONS_PER_ROW * STRIP_STEP;
+    float height = rows * STRIP_STEP;
+    return m.x >= STRIP_X && m.x < STRIP_X + width &&
+           m.y >= STRIP_Y && m.y < STRIP_Y + height;
 }
 
 int strip_brush_at(Vector2 m)
 {
     if (!point_on_strip(m)) return -1;
-    int idx = (int)((m.x - STRIP_X) / STRIP_STEP);
+    int col = (int)((m.x - STRIP_X) / STRIP_STEP);
+    int row = (int)((m.y - STRIP_Y) / STRIP_STEP);
+    int idx = row * STRIP_ICONS_PER_ROW + col;
     if (idx < 0 || idx >= TILE_COUNT) return -1;
     return idx;
+}
+
+void draw_brush_strip(void)
+{
+    Vector2 m = GetMousePosition();
+    for (int i = 0; i < TILE_COUNT; i++)
+    {
+        int row = i / STRIP_ICONS_PER_ROW;
+        int col = i % STRIP_ICONS_PER_ROW;
+        int ix = STRIP_X + col * STRIP_STEP;
+        int iy = STRIP_Y + row * STRIP_STEP;
+        Rectangle r = { ix, iy, STRIP_ICON, STRIP_ICON };
+        bool hovering = CheckCollisionPointRec(m, r);
+        bool selected = (i == current_brush);
+        Color fill = hovering ? (Color){ 70, 110, 70, 255 }
+                              : (selected ? (Color){ 90, 60, 20, 255 } : (Color){ 24, 34, 24, 255 });
+        DrawRectangleRec(r, fill);
+        DrawTexturePro(tile_textures[i],
+                       (Rectangle){ 0, 0, tile_textures[i].width, tile_textures[i].height },
+                       r, (Vector2){ 0, 0 }, 0, WHITE);
+        DrawRectangleLines(ix, iy, STRIP_ICON, STRIP_ICON, selected ? GOLD : DARKGRAY);
+    }
 }
 
 // --- Input handling ---
@@ -914,12 +932,10 @@ void handle_drawing_input(int *hover_x, int *hover_y)
 {
     Vector2 m = GetMousePosition();
 
-    // Brush strip selection (click a tile to switch brush)
     int picked = strip_brush_at(m);
     if (picked >= 0 && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         current_brush = picked;
 
-    // RMB cycles tile
     if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON))
         current_brush = (TileType)((current_brush + 1) % TILE_COUNT);
 
@@ -1012,29 +1028,28 @@ void draw_grid(int hover_x, int hover_y)
     ClearBackground((Color){ 40, 52, 44, 255 });
     collapsed_count = 0;
 
-    for (int x = 0; x < GRID_SIZE; x++)
-        for (int y = 0; y < GRID_SIZE; y++)
+    for (int x = 0; x < GRID_W; x++)
+        for (int y = 0; y < GRID_H; y++)
         {
             Rectangle dest = { x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE };
-            TileType t = grid[x][y].collapsed ? grid[x][y].tile : TILE_EMPTY;
+            TileType t = CELL(x, y).collapsed ? CELL(x, y).tile : TILE_EMPTY;
 
-            if (grid[x][y].collapsed)
+            if (CELL(x, y).collapsed)
             {
                 collapsed_count++;
                 DrawTexturePro(tile_textures[t],
                                (Rectangle){ 0, 0, tile_textures[t].width, tile_textures[t].height },
                                dest, (Vector2){ 0, 0 }, 0, WHITE);
-                if (cell_flash[x][y] > 0)
+                if (FLASH(x, y) > 0)
                 {
                     DrawRectangle(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE,
-                                  (Color){ 255, 255, 255, cell_flash[x][y] * 25 });
-                    cell_flash[x][y]--;
+                                  (Color){ 255, 255, 255, FLASH(x, y) * 25 });
+                    FLASH(x, y)--;
                 }
             }
             else if (show_heatmap)
             {
-                // Heatmap: red = high entropy (many options), blue = low (forced).
-                float frac = grid[x][y].entropy / (float)TILE_COUNT;
+                float frac = CELL(x, y).entropy / (float)TILE_COUNT;
                 if (frac < 0.0f) frac = 0.0f;
                 if (frac > 1.0f) frac = 1.0f;
                 unsigned char r = (unsigned char)(60 + 195.0f * frac);
@@ -1042,7 +1057,7 @@ void draw_grid(int hover_x, int hover_y)
                 DrawRectangle(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE,
                               (Color){ r, 80, b, 220 });
                 char num[4];
-                snprintf(num, sizeof(num), "%d", grid[x][y].entropy);
+                snprintf(num, sizeof(num), "%d", CELL(x, y).entropy);
                 int text_w = MeasureText(num, 10);
                 DrawText(num,
                          x * CELL_SIZE + (CELL_SIZE - text_w) / 2,
@@ -1051,14 +1066,13 @@ void draw_grid(int hover_x, int hover_y)
             }
             else
             {
-                int alpha = 45 + (int)((1.0f - grid[x][y].entropy / (float)TILE_COUNT) * 200.0f);
+                int alpha = 45 + (int)((1.0f - CELL(x, y).entropy / (float)TILE_COUNT) * 200.0f);
                 DrawTexturePro(tile_textures[TILE_EMPTY],
                                (Rectangle){ 0, 0, tile_textures[TILE_EMPTY].width, tile_textures[TILE_EMPTY].height },
                                dest, (Vector2){ 0, 0 }, 0, (Color){ 255, 255, 255, (unsigned char)alpha });
             }
         }
 
-    // Hover ghost
     if (state == STATE_DRAWING && hover_x >= 0 && hover_y >= 0)
     {
         int icon_x = hover_x * CELL_SIZE;
@@ -1074,33 +1088,15 @@ void draw_grid(int hover_x, int hover_y)
 
 void draw_hud(int hover_x, int hover_y)
 {
-    // Keep: hover cell highlight
     if (hover_x >= 0 && hover_y >= 0)
         DrawRectangleLines(hover_x * CELL_SIZE, hover_y * CELL_SIZE, CELL_SIZE, CELL_SIZE, RED);
 
-    // Keep: brush strip (interactive, drawn on canvas)
-    Vector2 m = GetMousePosition();
-    for (int i = 0; i < TILE_COUNT; i++)
-    {
-        int ix = STRIP_X + i * STRIP_STEP;
-        int iy = STRIP_Y;
-        Rectangle r = { ix, iy, STRIP_ICON, STRIP_ICON };
-        bool hovering = CheckCollisionPointRec(m, r);
-        bool selected = (i == current_brush);
-        Color fill = hovering ? (Color){ 70, 110, 70, 255 }
-                              : (selected ? (Color){ 90, 60, 20, 255 } : (Color){ 24, 34, 24, 255 });
-        DrawRectangleRec(r, fill);
-        DrawTexturePro(tile_textures[i],
-                       (Rectangle){ 0, 0, tile_textures[i].width, tile_textures[i].height },
-                       r, (Vector2){ 0, 0 }, 0, WHITE);
-        DrawRectangleLines(ix, iy, STRIP_ICON, STRIP_ICON, selected ? GOLD : DARKGRAY);
-    }
+    draw_brush_strip();
 
-    // Skip on web: all text panels are handled by HTML overlay
 #if !defined(__EMSCRIPTEN__)
-    // Brush panel
     DrawRectangle(8, 8, 236, 62, (Color){ 0, 0, 0, 160 });
-    // ... (keep all the existing DrawText calls here)
+    DrawText(TextFormat("Brush: %s", TILE_NAMES[current_brush]), 16, 14, 18, WHITE);
+    DrawText(TextFormat("Seeds: %d  Seed: %06u", seed_count, wfc_seed), 16, 38, 16, LIGHTGRAY);
 #endif
 }
 
@@ -1108,15 +1104,46 @@ void draw_hud(int hover_x, int hover_y)
 
 int main(void)
 {
-    InitWindow(screenWidth, screenHeight, "WFC road map generator");
+#if defined(__EMSCRIPTEN__)
+    int winW = 1280, winH = 720;
+    js_get_window_size(&winW, &winH);
+    CELL_SIZE = 28;
+    GRID_W = winW / CELL_SIZE;
+    GRID_H = winH / CELL_SIZE;
+    if (GRID_W < 10) GRID_W = 10;
+    if (GRID_H < 10) GRID_H = 10;
+#else
+    GRID_W = 50;
+    GRID_H = 50;
+    CELL_SIZE = 28;
+#endif
+
+    screenWidth = GRID_W * CELL_SIZE;
+    screenHeight = GRID_H * CELL_SIZE;
+    max_seeds = GRID_W * GRID_H;
+
+    grid = (Cell *)calloc((size_t)GRID_W * GRID_H, sizeof(Cell));
+    cell_flash = (uint8_t *)calloc((size_t)GRID_W * GRID_H, sizeof(uint8_t));
+    seeds = (Seed *)malloc((size_t)max_seeds * sizeof(Seed));
+    if (!grid || !cell_flash || !seeds)
+    {
+        fprintf(stderr, "Failed to allocate grid memory\n");
+        return 1;
+    }
+
+    InitWindow(screenWidth, screenHeight, "WFC Road Map");
     SetTargetFPS(60);
 
     if (!load_tile_textures())
     {
         CloseWindow();
+        free(grid);
+        free(cell_flash);
+        free(seeds);
         return 1;
     }
 
+    initialize_grid();
     handle_url_seeds();
     state = STATE_DRAWING;
 
@@ -1126,11 +1153,15 @@ int main(void)
         mouse_to_cell(&hx, &hy);
 
         if (state == STATE_DRAWING)
+        {
             handle_drawing_input(&hx, &hy);
+        }
         else
+        {
             handle_generating_input();
+        }
 
-        update_web_hud();   // <-- add this line
+        update_web_hud();
 
         BeginDrawing();
         draw_grid(hx, hy);
@@ -1141,5 +1172,12 @@ int main(void)
 
     unload_tile_textures();
     CloseWindow();
+
+    for (int i = 0; i < undo_top; i++) free(undo_stack[i].data);
+    for (int i = 0; i < redo_top; i++) free(redo_stack[i].data);
+    free(grid);
+    free(cell_flash);
+    free(seeds);
+
     return 0;
 }

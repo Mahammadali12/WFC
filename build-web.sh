@@ -16,6 +16,7 @@ emcc main.c queue.c tiles.c -o web/index.html \
     -s ASYNCIFY \
     -s ALLOW_MEMORY_GROWTH=1 \
     --preload-file tilesets@tilesets \
-    --shell-file tools/shell.html
+    --shell-file tools/shell.html \
+    -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap'] \
 
 echo "Web build done: web/index.html (+ .js/.wasm/.data)"
