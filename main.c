@@ -151,6 +151,8 @@ void parse_seed_string(const char *text);
 void handle_url_seeds(void);
 bool save_pattern(int slot);
 bool load_pattern(int slot);
+void copy_seeds_to_clipboard(void);
+void paste_seeds_from_clipboard(void);
 void undo_one(void);
 void redo_one(void);
 
@@ -272,6 +274,55 @@ void parse_seed_string(const char *text)
         if (!semi) break;
         p = semi + 1;
     }
+}
+
+// --- Clipboard (raylib) ---
+//
+// raylib's SetClipboardText / GetClipboardText work on the desktop, and
+// Emscripten's raylib web backend wires them through to the browser
+// clipboard. The returned pointer from GetClipboardText is owned by raylib
+// (do not free).
+
+void copy_seeds_to_clipboard(void)
+{
+    char *text = seed_string();
+    if (!text)
+    {
+        snprintf(notice, sizeof(notice), "Copy failed (out of memory)");
+        notice_ticks = 120;
+        return;
+    }
+    SetClipboardText(text);
+    free(text);
+
+    snprintf(notice, sizeof(notice), "Copied %d seeds to clipboard", seed_count);
+    notice_ticks = 120;
+}
+
+void paste_seeds_from_clipboard(void)
+{
+    const char *text = GetClipboardText();
+    if (!text || text[0] == '\0')
+    {
+        snprintf(notice, sizeof(notice), "Clipboard empty");
+        notice_ticks = 120;
+        return;
+    }
+    // Spot-check: a valid seed string has the form "x,y,t;x,y,t;..."
+    if (!strchr(text, ',') || !strchr(text, ';'))
+    {
+        snprintf(notice, sizeof(notice), "Clipboard not a seed pattern");
+        notice_ticks = 120;
+        return;
+    }
+    int prev = seed_count;
+    undo_suppress = true;
+    parse_seed_string(text);
+    undo_suppress = false;
+    if (seed_count != prev)
+        push_undo();
+    snprintf(notice, sizeof(notice), "Pasted %d seeds from clipboard", seed_count);
+    notice_ticks = 120;
 }
 
 bool save_pattern(int slot)
@@ -760,6 +811,12 @@ void handle_drawing_input(int *hover_x, int *hover_y)
         notice_ticks = 90;
     }
 
+    if (IsKeyPressed(KEY_C) && !IsKeyDown(KEY_LEFT_CONTROL) && !IsKeyDown(KEY_RIGHT_CONTROL))
+        copy_seeds_to_clipboard();
+
+    if (IsKeyPressed(KEY_V) && !IsKeyDown(KEY_LEFT_CONTROL) && !IsKeyDown(KEY_RIGHT_CONTROL))
+        paste_seeds_from_clipboard();
+
     if (IsKeyPressed(KEY_Z) && IsKeyDown(KEY_LEFT_CONTROL))
     {
         if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT))
@@ -920,7 +977,7 @@ void draw_hud(int hover_x, int hover_y)
 
     // Bottom hint bar
     DrawRectangle(8, screenHeight - 34, screenWidth - 16, 26, (Color){ 0, 0, 0, 160 });
-    DrawText("LMB paint | RMB cycle | MMB/E erase | R clear | Ctrl+Z/Shift+Z undo/redo | 1-9 load / Ctrl+1-9 save | P PNG | H heatmap | [ ] seed | Enter generate",
+    DrawText("LMB paint | RMB cycle | MMB/E erase | R clear | Ctrl+Z/Shift+Z undo/redo | 1-9 load / Ctrl+1-9 save | C/V clipboard | P PNG | H heatmap | [ ] seed | Enter generate",
              16, screenHeight - 30, 12, WHITE);
 
     // Notice text (above the hint bar)
