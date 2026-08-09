@@ -2,6 +2,7 @@
 #include <raylib.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include "queue.h"
 
 // gcc main.c -g -o main -Wall -Wextra -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 
@@ -37,9 +38,7 @@ typedef struct {
     EdgeType right;
 } TileEdges;
 
-typedef struct {
-    int x,y;
-}CellPos;
+
 
 
 
@@ -82,7 +81,7 @@ int main(void)
     InitWindow(screenWidth, screenHeight, "raylib [textures] example - logo raylib");
 
     // NOTE: Textures MUST be loaded after Window initialization (OpenGL context is required)
-    Texture2D texture = LoadTexture("./tilesets/empty-green.png");// Texture loading
+    // Texture2D texture = LoadTexture("./tilesets/empty-green.png");// Texture loading
 
     SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
     //---------------------------------------------------------------------------------------
@@ -105,7 +104,7 @@ int main(void)
     }
 
     // De-Initialization
-    UnloadTexture(texture);       // Texture unloading
+    // UnloadTexture(texture);       // Texture unloading
 
     CloseWindow();                // Close window and OpenGL context
 
@@ -141,6 +140,21 @@ bool edges_compatible(EdgeType edge1, EdgeType edge2)
 bool can_be_adjacent(TileType tile1, TileType tile2, Direction dir) 
 {
     return get_edge(tile1,dir) == get_edge(tile2,get_opposite_direction(dir));
+}
+
+CellPos get_neighbor (CellPos pos,Direction dir)
+{
+    if(dir == DIR_TOP)
+    pos.y+1; return pos;
+
+    if(dir == DIR_BOTTOM)
+    pos.y-1; return pos;
+
+    if(dir == DIR_RIGHT)
+    pos.x+1; return pos;
+
+    if(dir == DIR_LEFT)
+    pos.x-1; return pos;
 }
 
 EdgeType get_edge(TileType tile, Direction direction)
@@ -246,7 +260,27 @@ void collapse_cell(Cell cell)
 }
 
 
-// porpagate(Cell start_cell)
-// {
-// 
-// }
+void porpagate(Cell start_cell)
+{
+    Queue* q;
+    queue_init(q,10000);
+
+    while (!queue_is_empty(q))
+    {
+        CellPos current = *q->data;
+        for (int i = 0; i < 4; i++)
+        {
+            Direction dir = i; // See Direction ENUM
+            CellPos neighbor = get_neighbor(current,dir);
+
+            if((neighbor.x < 0 || neighbor.x > 100) || (neighbor.y < 0 || neighbor.y > 100)) // Edge of grid
+                continue;
+            if(grid[neighbor.x][neighbor.y].collapsed)
+                continue;
+            
+            
+        }
+        
+    }
+    
+}
