@@ -65,12 +65,14 @@ const char *TILE_TEXTURE_FILES[TILE_COUNT] = {
     [TILE_LOW_L]   = "tilesets/lower-left-corner.png",
     [TILE_LOW_R]   = "tilesets/lower-right-corner.png",
     [TILE_EMPTY]   = "tilesets/empty-green.png",
+
     // --- Crossings + T-junctions ---
     [TILE_CROSS]   = "tilesets/crossing.png",
     [TILE_T_UP]    = "tilesets/t-up.png",
     [TILE_T_DOWN]  = "tilesets/t-down.png",
     [TILE_T_LEFT]  = "tilesets/t-left.png",
     [TILE_T_RIGHT] = "tilesets/t-right.png",
+
     // --- Water base ---
     [TILE_WATER_HR]      = "tilesets/water-hr.png",
     [TILE_WATER_VR]      = "tilesets/water-vr.png",
@@ -78,52 +80,58 @@ const char *TILE_TEXTURE_FILES[TILE_COUNT] = {
     [TILE_WATER_UP_R]    = "tilesets/water-up-r.png",
     [TILE_WATER_LOW_L]   = "tilesets/water-low-l.png",
     [TILE_WATER_LOW_R]   = "tilesets/water-low-r.png",
-    // --- Road straight bank variants ---
-    [TILE_HR_BANK_TOP]    = "tilesets/hr-bank-top.png",
-    [TILE_HR_BANK_BOTTOM] = "tilesets/hr-bank-bottom.png",
-    [TILE_HR_BANK_BOTH]   = "tilesets/hr-bank-both.png",
-    [TILE_VR_BANK_LEFT]   = "tilesets/vr-bank-left.png",
-    [TILE_VR_BANK_RIGHT]  = "tilesets/vr-bank-right.png",
-    [TILE_VR_BANK_BOTH]   = "tilesets/vr-bank-both.png",
-    // --- Water straight bank variants ---
-    [TILE_WATER_HR_BANK_TOP]    = "tilesets/water-hr-bank-top.png",
-    [TILE_WATER_HR_BANK_BOTTOM] = "tilesets/water-hr-bank-bottom.png",
-    [TILE_WATER_HR_BANK_BOTH]   = "tilesets/water-hr-bank-both.png",
-    [TILE_WATER_VR_BANK_LEFT]   = "tilesets/water-vr-bank-left.png",
-    [TILE_WATER_VR_BANK_RIGHT]  = "tilesets/water-vr-bank-right.png",
-    [TILE_WATER_VR_BANK_BOTH]   = "tilesets/water-vr-bank-both.png",
-    // --- Road corner bank variants ---
-    [TILE_UP_L_BANK_TOP]      = "tilesets/up-l-bank-top.png",
-    [TILE_UP_L_BANK_LEFT]     = "tilesets/up-l-bank-left.png",
-    [TILE_UP_L_BANK_BOTH]     = "tilesets/up-l-bank-both.png",
-    [TILE_UP_R_BANK_TOP]      = "tilesets/up-r-bank-top.png",
-    [TILE_UP_R_BANK_RIGHT]    = "tilesets/up-r-bank-right.png",
-    [TILE_UP_R_BANK_BOTH]     = "tilesets/up-r-bank-both.png",
-    [TILE_LOW_L_BANK_BOTTOM]  = "tilesets/low-l-bank-bottom.png",
-    [TILE_LOW_L_BANK_LEFT]    = "tilesets/low-l-bank-left.png",
-    [TILE_LOW_L_BANK_BOTH]    = "tilesets/low-l-bank-both.png",
-    [TILE_LOW_R_BANK_BOTTOM]  = "tilesets/low-r-bank-bottom.png",
-    [TILE_LOW_R_BANK_RIGHT]   = "tilesets/low-r-bank-right.png",
-    [TILE_LOW_R_BANK_BOTH]    = "tilesets/low-r-bank-both.png",
-    // --- Water corner bank variants ---
-    [TILE_WATER_UP_L_BANK_TOP]      = "tilesets/water-up-l-bank-top.png",
-    [TILE_WATER_UP_L_BANK_LEFT]     = "tilesets/water-up-l-bank-left.png",
-    [TILE_WATER_UP_L_BANK_BOTH]     = "tilesets/water-up-l-bank-both.png",
-    [TILE_WATER_UP_R_BANK_TOP]      = "tilesets/water-up-r-bank-top.png",
-    [TILE_WATER_UP_R_BANK_RIGHT]    = "tilesets/water-up-r-bank-right.png",
-    [TILE_WATER_UP_R_BANK_BOTH]     = "tilesets/water-up-r-bank-both.png",
-    [TILE_WATER_LOW_L_BANK_BOTTOM]  = "tilesets/water-low-l-bank-bottom.png",
-    [TILE_WATER_LOW_L_BANK_LEFT]    = "tilesets/water-low-l-bank-left.png",
-    [TILE_WATER_LOW_L_BANK_BOTH]    = "tilesets/water-low-l-bank-both.png",
-    [TILE_WATER_LOW_R_BANK_BOTTOM]  = "tilesets/water-low-r-bank-bottom.png",
-    [TILE_WATER_LOW_R_BANK_RIGHT]   = "tilesets/water-low-r-bank-right.png",
-    [TILE_WATER_LOW_R_BANK_BOTH]    = "tilesets/water-low-r-bank-both.png",
-    // --- Grass bank tiles ---
-    [TILE_GRASS_BANK_TOP]    = "tilesets/grass-bank-top.png",
-    [TILE_GRASS_BANK_BOTTOM] = "tilesets/grass-bank-bottom.png",
-    [TILE_GRASS_BANK_LEFT]   = "tilesets/grass-bank-left.png",
-    [TILE_GRASS_BANK_RIGHT]  = "tilesets/grass-bank-right.png",
+
+    // --- Road straight bank variants -> reuse base road PNGs ---
+    [TILE_HR_BANK_TOP]    = "tilesets/horizontal-line.png",
+    [TILE_HR_BANK_BOTTOM] = "tilesets/horizontal-line.png",
+    [TILE_HR_BANK_BOTH]   = "tilesets/horizontal-line.png",
+    [TILE_VR_BANK_LEFT]   = "tilesets/vertical-line.png",
+    [TILE_VR_BANK_RIGHT]  = "tilesets/vertical-line.png",
+    [TILE_VR_BANK_BOTH]   = "tilesets/vertical-line.png",
+
+    // --- Water straight bank variants -> reuse base water PNGs ---
+    [TILE_WATER_HR_BANK_TOP]    = "tilesets/water-hr.png",
+    [TILE_WATER_HR_BANK_BOTTOM] = "tilesets/water-hr.png",
+    [TILE_WATER_HR_BANK_BOTH]   = "tilesets/water-hr.png",
+    [TILE_WATER_VR_BANK_LEFT]   = "tilesets/water-vr.png",
+    [TILE_WATER_VR_BANK_RIGHT]  = "tilesets/water-vr.png",
+    [TILE_WATER_VR_BANK_BOTH]   = "tilesets/water-vr.png",
+
+    // --- Road corner bank variants -> reuse base corner PNGs ---
+    [TILE_UP_L_BANK_TOP]      = "tilesets/upper-left-corner.png",
+    [TILE_UP_L_BANK_LEFT]     = "tilesets/upper-left-corner.png",
+    [TILE_UP_L_BANK_BOTH]     = "tilesets/upper-left-corner.png",
+    [TILE_UP_R_BANK_TOP]      = "tilesets/upper-right-corner.png",
+    [TILE_UP_R_BANK_RIGHT]    = "tilesets/upper-right-corner.png",
+    [TILE_UP_R_BANK_BOTH]     = "tilesets/upper-right-corner.png",
+    [TILE_LOW_L_BANK_BOTTOM]  = "tilesets/lower-left-corner.png",
+    [TILE_LOW_L_BANK_LEFT]    = "tilesets/lower-left-corner.png",
+    [TILE_LOW_L_BANK_BOTH]    = "tilesets/lower-left-corner.png",
+    [TILE_LOW_R_BANK_BOTTOM]  = "tilesets/lower-right-corner.png",
+    [TILE_LOW_R_BANK_RIGHT]   = "tilesets/lower-right-corner.png",
+    [TILE_LOW_R_BANK_BOTH]    = "tilesets/lower-right-corner.png",
+
+    // --- Water corner bank variants -> reuse base water-corner PNGs ---
+    [TILE_WATER_UP_L_BANK_TOP]      = "tilesets/water-up-l.png",
+    [TILE_WATER_UP_L_BANK_LEFT]     = "tilesets/water-up-l.png",
+    [TILE_WATER_UP_L_BANK_BOTH]     = "tilesets/water-up-l.png",
+    [TILE_WATER_UP_R_BANK_TOP]      = "tilesets/water-up-r.png",
+    [TILE_WATER_UP_R_BANK_RIGHT]    = "tilesets/water-up-r.png",
+    [TILE_WATER_UP_R_BANK_BOTH]     = "tilesets/water-up-r.png",
+    [TILE_WATER_LOW_L_BANK_BOTTOM]  = "tilesets/water-low-l.png",
+    [TILE_WATER_LOW_L_BANK_LEFT]    = "tilesets/water-low-l.png",
+    [TILE_WATER_LOW_L_BANK_BOTH]    = "tilesets/water-low-l.png",
+    [TILE_WATER_LOW_R_BANK_BOTTOM]  = "tilesets/water-low-r.png",
+    [TILE_WATER_LOW_R_BANK_RIGHT]   = "tilesets/water-low-r.png",
+    [TILE_WATER_LOW_R_BANK_BOTH]    = "tilesets/water-low-r.png",
+
+    // --- Grass bank tiles -> reuse empty-green.png ---
+    [TILE_GRASS_BANK_TOP]    = "tilesets/empty-green.png",
+    [TILE_GRASS_BANK_BOTTOM] = "tilesets/empty-green.png",
+    [TILE_GRASS_BANK_LEFT]   = "tilesets/empty-green.png",
+    [TILE_GRASS_BANK_RIGHT]  = "tilesets/empty-green.png",
 };
+
 
 typedef struct {
     int collapsed;
