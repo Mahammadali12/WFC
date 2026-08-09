@@ -80,7 +80,7 @@ bool can_be_adjacent(TileType tile1, TileType tile2, Direction dir)
     return get_edge(tile1, dir) == get_edge(tile2, get_opposite_direction(dir));
 }
 
-int tile_popcount(uint16_t mask)
+int tile_popcount(uint32_t mask)
 {
     int count = 0;
     for (int i = 0; i < TILE_COUNT; i++)
@@ -90,7 +90,7 @@ int tile_popcount(uint16_t mask)
 }
 
 // Weighted pick among the tiles present in the mask.
-TileType pick_weighted_tile(uint16_t possible_tiles)
+TileType pick_weighted_tile(uint32_t possible_tiles)
 {
     int total = 0;
     for (int t = 0; t < TILE_COUNT; t++)

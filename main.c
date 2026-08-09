@@ -74,7 +74,7 @@ const char *TILE_TEXTURE_FILES[TILE_COUNT] = {
 typedef struct {
     int collapsed;
     TileType tile;
-    uint16_t possible_tiles;
+    uint32_t possible_tiles;
     int entropy;
 } Cell;
 
@@ -416,7 +416,7 @@ void initialize_grid(void)
         {
             grid[x][y].collapsed = 0;
             grid[x][y].tile = TILE_EMPTY;
-            grid[x][y].possible_tiles = (uint16_t)((1u << TILE_COUNT) - 1);
+            grid[x][y].possible_tiles = ((1u << TILE_COUNT) - 1);
             grid[x][y].entropy = TILE_COUNT;
         }
 }
@@ -426,7 +426,7 @@ void place_seed(int x, int y, TileType tile)
     if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return;
     grid[x][y].collapsed = 1;
     grid[x][y].tile = tile;
-    grid[x][y].possible_tiles = (uint16_t)(1u << tile);
+    grid[x][y].possible_tiles = (1u << tile);
     grid[x][y].entropy = 0;
 }
 
@@ -465,7 +465,7 @@ void erase_seed(int x, int y)
     push_undo();
     grid[x][y].collapsed = 0;
     grid[x][y].tile = TILE_EMPTY;
-    grid[x][y].possible_tiles = (uint16_t)((1u << TILE_COUNT) - 1);
+    grid[x][y].possible_tiles = ((1u << TILE_COUNT) - 1);
     grid[x][y].entropy = TILE_COUNT;
     for (int i = 0; i < seed_count; i++)
     {
@@ -554,7 +554,7 @@ void collapse_cell(int x, int y)
     cell->collapsed = 1;
     cell->entropy = 0;
     cell->tile = chosen;
-    cell->possible_tiles = (uint16_t)(1u << chosen);
+    cell->possible_tiles = (1u << chosen);
     cell_flash[x][y] = 10;
 }
 
@@ -595,13 +595,13 @@ void propagate_cell(CellPos start)
             Cell *neighbor = &grid[neighbor_pos.x][neighbor_pos.y];
             if (neighbor->collapsed) continue;
 
-            uint16_t new_possible = 0;
+            uint32_t new_possible = 0;
             for (int t = 0; t < TILE_COUNT; t++)
             {
                 if (neighbor->possible_tiles & (1u << t))
                 {
                     if (can_be_adjacent(cell->tile, (TileType)t, dir))
-                        new_possible |= (uint16_t)(1u << t);
+                        new_possible |= (1u << t);
                 }
             }
 

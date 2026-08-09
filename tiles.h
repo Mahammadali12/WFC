@@ -47,7 +47,7 @@ extern const int TILE_WEIGHTS[TILE_COUNT];
 EdgeType get_edge(TileType tile, Direction direction);
 Direction get_opposite_direction(Direction direction);
 bool can_be_adjacent(TileType tile1, TileType tile2, Direction dir);
-int tile_popcount(uint16_t mask);
-TileType pick_weighted_tile(uint16_t possible_tiles);
+int tile_popcount(uint32_t mask);
+TileType pick_weighted_tile(uint32_t possible_tiles);
 
 #endif // TILES_H
