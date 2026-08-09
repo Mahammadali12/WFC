@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WFC Road Map Generator</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a1a;
+    color: #eee;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+  }
+  #game-wrap {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  canvas.emscripten {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    image-rendering: pixelated;
+    box-shadow: 0 0 40px rgba(0,0,0,0.6);
+  }
+  #hud {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 14px 18px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+  }
+  .hud-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .hud-panel {
+    background: rgba(15, 20, 15, 0.72);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    line-height: 1.55;
+    pointer-events: auto;
+    min-width: 140px;
+  }
+  .hud-panel h4 {
+    margin: 0 0 6px 0;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #8a8;
+  }
+  .stat { color: #9df; font-weight: 700; }
+  .kbd {
+    display: inline-block;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 11px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    margin: 0 1px;
+  }
+  .hud-notice {
+    position: absolute;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(50, 140, 50, 0.92);
+    color: #e8ffe8;
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .hud-notice.show { opacity: 1; }
+  .heatmap-badge {
+    display: inline-block;
+    background: #c44;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+<div id="game-wrap">
+  <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+  <div id="hud">
+    <div class="hud-row">
+      <div class="hud-panel">
+        <h4>Current Brush</h4>
+        <div id="hud-brush" class="stat" style="font-size:15px;">Horizontal</div>
+        <div style="margin-top:6px; color:#bbb;">
+          Seeds: <span id="hud-seeds" class="stat">0</span>
+          <span style="margin:0 6px;">·</span>
+          Seed: <span id="hud-wfc-seed" class="stat">0</span>
+        </div>
+      </div>
+      <div class="hud-panel" style="text-align:right;">
+        <h4>Generation</h4>
+        <div>Collapsed: <span id="hud-collapsed" class="stat">0</span> / <span id="hud-total">2500</span></div>
+        <div>Attempts: <span id="hud-attempts" class="stat">0</span> · Restarts: <span id="hud-restarts" class="stat">0</span></div>
+        <div>Speed: <span id="hud-speed" class="stat">20</span> · FPS: <span id="hud-fps" class="stat">0</span></div>
+        <div id="hud-heatmap-badge" class="heatmap-badge" style="display:none;">HEATMAP ON</div>
+      </div>
+    </div>
+    <div class="hud-row">
+      <div class="hud-panel" style="max-width: 900px;">
+        <span class="kbd">LMB</span> paint
+        <span class="kbd">RMB</span> cycle
+        <span class="kbd">MMB</span>/<span class="kbd">E</span> erase
+        <span class="kbd">R</span> clear
+        <span class="kbd">Ctrl+Z</span> undo/redo
+        <span class="kbd">1-9</span> load
+        <span class="kbd">Ctrl+1-9</span> save
+        <span class="kbd">C</span>/<span class="kbd">V</span> clipboard
+        <span class="kbd">P</span> PNG
+        <span class="kbd">H</span> heatmap
+        <span class="kbd">[ ]</span> seed
+        <span class="kbd">Enter</span> generate
+      </div>
+    </div>
+    <div id="hud-notice" class="hud-notice"></div>
+  </div>
+</div>
+<script>
+var Module = {
+  print: function() {
+    return function(text) { console.log(text); };
+  }(),
+  canvas: document.getElementById('canvas')
+};
+</script>
+{{{ SCRIPT }}}
+</body>
+</html>

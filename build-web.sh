@@ -1,7 +1,6 @@
 #!/bin/sh
 set -e
 
-# Emscripten toolchain (one-time setup documented in AGENTS.md)
 if [ -z "$EMSDK" ]; then
     . ~/emsdk/emsdk_env.sh
 fi
@@ -17,6 +16,6 @@ emcc main.c queue.c tiles.c -o web/index.html \
     -s ASYNCIFY \
     -s ALLOW_MEMORY_GROWTH=1 \
     --preload-file tilesets@tilesets \
-    --shell-file vendor/raylib-6.0-web/shell.html
+    --shell-file tools/shell.html
 
 echo "Web build done: web/index.html (+ .js/.wasm/.data)"

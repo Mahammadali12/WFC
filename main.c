@@ -48,6 +48,44 @@ EM_JS(void, wfc_download, (void *ptr, int size, const char *name),
     a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
 });
+#if defined(__EMSCRIPTEN__)
+EM_JS(void, js_hud_update, (
+    const char* brush,
+    int seeds,
+    unsigned int seed,
+    int collapsed,
+    int total,
+    int attempts,
+    int restarts,
+    int fps,
+    int speed,
+    int heatmap,
+    const char* notice,
+    int notice_ticks
+), {
+    var elBrush = document.getElementById('hud-brush');
+    if (!elBrush) return;  // DOM not ready yet, skip silently
+
+    elBrush.textContent = UTF8ToString(brush);
+    document.getElementById('hud-seeds').textContent = seeds;
+    document.getElementById('hud-wfc-seed').textContent = seed;
+    document.getElementById('hud-collapsed').textContent = collapsed;
+    document.getElementById('hud-total').textContent = total;
+    document.getElementById('hud-attempts').textContent = attempts;
+    document.getElementById('hud-restarts').textContent = restarts;
+    document.getElementById('hud-fps').textContent = fps;
+    document.getElementById('hud-speed').textContent = speed;
+    document.getElementById('hud-heatmap-badge').style.display = heatmap ? 'inline-block' : 'none';
+
+    var el = document.getElementById('hud-notice');
+    if (notice_ticks > 0) {
+        el.textContent = UTF8ToString(notice);
+        el.classList.add('show');
+    } else {
+        el.classList.remove('show');
+    }
+});
+#endif
 #endif
 
 #define GRID_SIZE 50
@@ -133,6 +171,7 @@ const char *TILE_TEXTURE_FILES[TILE_COUNT] = {
 };
 
 
+
 typedef struct {
     int collapsed;
     TileType tile;
@@ -185,6 +224,28 @@ SeedSnapshot redo_stack[UNDO_DEPTH];
 int undo_top = 0;
 int redo_top = 0;
 bool undo_suppress = false;
+
+
+
+static void update_web_hud(void)
+{
+#if defined(__EMSCRIPTEN__)
+    js_hud_update(
+        TILE_NAMES[current_brush],
+        seed_count,
+        wfc_seed,
+        collapsed_count,
+        GRID_SIZE * GRID_SIZE,
+        gen_attempts,
+        consecutive_restarts,
+        GetFPS(),
+        cells_per_frame,
+        show_heatmap,
+        notice,
+        notice_ticks
+    );
+#endif
+}
 
 // --- Forward declarations ---
 CellPos get_neighbor(CellPos pos, Direction dir);
@@ -1013,30 +1074,11 @@ void draw_grid(int hover_x, int hover_y)
 
 void draw_hud(int hover_x, int hover_y)
 {
-    // Hover cell highlight
+    // Keep: hover cell highlight
     if (hover_x >= 0 && hover_y >= 0)
         DrawRectangleLines(hover_x * CELL_SIZE, hover_y * CELL_SIZE, CELL_SIZE, CELL_SIZE, RED);
 
-    // Brush panel (top-left)
-    const int panel_w = 236;
-    const int panel_h = 62;
-    DrawRectangle(8, 8, panel_w, panel_h, (Color){ 0, 0, 0, 160 });
-
-    Rectangle icon = { 16, 16, 40, 40 };
-    DrawTexturePro(tile_textures[current_brush],
-                   (Rectangle){ 0, 0, tile_textures[current_brush].width, tile_textures[current_brush].height },
-                   icon, (Vector2){ 0, 0 }, 0, WHITE);
-    DrawRectangleLines((int)icon.x, (int)icon.y, (int)icon.width, (int)icon.height, RED);
-
-    char brush_line[96];
-    snprintf(brush_line, sizeof(brush_line), "Brush: %s", TILE_NAMES[current_brush]);
-    DrawText(brush_line, 66, 12, 14, WHITE);
-
-    char seed_line[96];
-    snprintf(seed_line, sizeof(seed_line), "Seeds: %d   Seed: %u", seed_count, wfc_seed);
-    DrawText(seed_line, 66, 32, 14, WHITE);
-
-    // Brush strip: 12 clickable tiles
+    // Keep: brush strip (interactive, drawn on canvas)
     Vector2 m = GetMousePosition();
     for (int i = 0; i < TILE_COUNT; i++)
     {
@@ -1054,33 +1096,12 @@ void draw_hud(int hover_x, int hover_y)
         DrawRectangleLines(ix, iy, STRIP_ICON, STRIP_ICON, selected ? GOLD : DARKGRAY);
     }
 
-    // Bottom hint bar
-    DrawRectangle(8, screenHeight - 34, screenWidth - 16, 26, (Color){ 0, 0, 0, 160 });
-    DrawText("LMB paint | RMB cycle | MMB/E erase | R clear | Ctrl+Z/Shift+Z undo/redo | 1-9 load / Ctrl+1-9 save | C/V clipboard | P PNG | H heatmap | [ ] seed | Enter generate",
-             16, screenHeight - 30, 12, WHITE);
-
-    // Notice text (above the hint bar)
-    if (notice_ticks > 0)
-    {
-        DrawText(notice, 16, screenHeight - 48, 14, LIME);
-        notice_ticks--;
-    }
-
-    // Stats HUD (top-right)
-    char stats[160];
-    snprintf(stats, sizeof(stats), "Collapsed: %d/%d   Attempts: %d   Restarts: %d   Cells/s: %d   FPS: %d",
-             collapsed_count, GRID_SIZE * GRID_SIZE, gen_attempts,
-             consecutive_restarts, cells_per_frame, GetFPS());
-    DrawText(stats, screenWidth - MeasureText(stats, 16) - 16, 10, 16, WHITE);
-
-    // Heatmap mode indicator
-    if (show_heatmap)
-    {
-        const char *label = "HEATMAP (H)";
-        int w = MeasureText(label, 16);
-        DrawRectangle(screenWidth - w - 24, 30, w + 16, 22, (Color){ 180, 60, 60, 200 });
-        DrawText(label, screenWidth - w - 16, 34, 16, WHITE);
-    }
+    // Skip on web: all text panels are handled by HTML overlay
+#if !defined(__EMSCRIPTEN__)
+    // Brush panel
+    DrawRectangle(8, 8, 236, 62, (Color){ 0, 0, 0, 160 });
+    // ... (keep all the existing DrawText calls here)
+#endif
 }
 
 // --- Main ---
@@ -1108,6 +1129,8 @@ int main(void)
             handle_drawing_input(&hx, &hy);
         else
             handle_generating_input();
+
+        update_web_hud();   // <-- add this line
 
         BeginDrawing();
         draw_grid(hx, hy);
