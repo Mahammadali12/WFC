@@ -1,320 +1,387 @@
 #!/usr/bin/env python3
 """
-Procedural tile art generator for the WFC road/water/bank system.
-
-Generates 256x256 PNGs for the 46 new tiles (water, bank variants, grass
-banks) using the same visual language as the existing tileset (the road
-tiles use a 60-pixel-wide gray band on green; we mirror that).
-
-This is the Python counterpart of tools/make_tiles.c (which only handled
-crossing + 4 T-junctions). We use Python+PIL here because the new tile
-set has enough variations that hand-coding each one in C is more error-
-prone than a small data-driven generator.
-
-Color palette (matched to the existing tileset):
-  - grass:    (74, 122, 80)    #4a7a50  - the green of empty-green.png
-  - road:     (88, 88, 88)     #585858  - the gray of horizontal-line.png
-  - water:    (62, 102, 140)   #3e668c  - blue, slightly desaturated
-  - bank:     (180, 158, 110)  #b49e6e  - sandy/tan embankment
-
-Bank is rendered as a sand-colored band, narrower than a road, on the
-side(s) of the cell that have a BANK edge. The cell still shows the
-"main" feature (road or water) on the road/water side(s).
+Procedural tile art generator that matches the existing hand-drawn tileset.
+Composites strips from actual tileset PNGs instead of drawing solid colors.
+Also generates crossing + T-junctions (replacing the old solid-color C tool).
 """
 
 import os
-import sys
-from PIL import Image, ImageDraw
+from PIL import Image
 
-# ---- Colors ----------------------------------------------------------------
-GRASS = (74, 122, 80, 255)
-ROAD  = (88, 88, 88, 255)
-WATER = (62, 102, 140, 255)
-BANK  = (180, 158, 110, 255)
-
-# Geometry matched to the existing tiles (256x256, 60px band):
 SIZE = 256
-BAND = 60  # width of road/water band
-BANK_BAND = 22  # width of the bank strip (narrower than a road)
-HALF = SIZE // 2  # 128
+HALF = 128
+BANK_BAND = 22
 
-OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "tilesets")
-
-
-def fill_solid(img, color):
-    """Fill the entire image with a single color."""
-    draw = ImageDraw.Draw(img)
-    draw.rectangle([(0, 0), (SIZE, SIZE)], fill=color)
+BASE_DIR = os.path.join(os.path.dirname(__file__), "..", "tilesets")
 
 
-def fill_grass(img):
-    fill_solid(img, GRASS)
+def load(name):
+    return Image.open(os.path.join(BASE_DIR, name)).convert("RGBA")
 
 
-def draw_road_h(img, top, bottom):
-    """Horizontal road: a vertical band from top to bottom of the cell.
-    top/bottom are 'cropped' bounds — None means full extent."""
-    draw = ImageDraw.Draw(img)
-    x0 = HALF - BAND // 2
-    x1 = HALF + BAND // 2
-    draw.rectangle([(x0, 0 if top is None else top),
-                    (x1, SIZE if bottom is None else bottom)], fill=ROAD)
+def save(img, name):
+    img.save(os.path.join(BASE_DIR, name), "PNG")
+    print("wrote", name)
 
 
-def draw_road_v(img, left, right):
-    draw = ImageDraw.Draw(img)
-    y0 = HALF - BAND // 2
-    y1 = HALF + BAND // 2
-    draw.rectangle([(0 if left is None else left, y0),
-                    (SIZE if right is None else right, y1)], fill=ROAD)
+def extract_road_mask(src_img, grass_img):
+    src = src_img.load()
+    grass = grass_img.load()
+    mask = [[False] * SIZE for _ in range(SIZE)]
+    for y in range(SIZE):
+        for x in range(SIZE):
+            sr, sg, sb, _ = src[x, y]
+            gr, gg, gb, _ = grass[x, y]
+            if (sr - gr) ** 2 + (sg - gg) ** 2 + (sb - gb) ** 2 > 3000:
+                mask[y][x] = True
+    return mask
 
 
-def draw_water_h(img, top, bottom):
-    draw = ImageDraw.Draw(img)
-    x0 = HALF - BAND // 2
-    x1 = HALF + BAND // 2
-    draw.rectangle([(x0, 0 if top is None else top),
-                    (x1, SIZE if bottom is None else bottom)], fill=WATER)
+def copy_masked(dst, src, mask, x0=0, y0=0, x1=SIZE, y1=SIZE):
+    dp = dst.load()
+    sp = src.load()
+    for y in range(max(0, y0), min(SIZE, y1)):
+        for x in range(max(0, x0), min(SIZE, x1)):
+            if mask[y][x]:
+                dp[x, y] = sp[x, y]
 
 
-def draw_water_v(img, left, right):
-    draw = ImageDraw.Draw(img)
-    y0 = HALF - BAND // 2
-    y1 = HALF + BAND // 2
-    draw.rectangle([(0 if left is None else left, y0),
-                    (SIZE if right is None else right, y1)], fill=WATER)
+def tint_masked(dst, src, mask, tint, x0=0, y0=0, x1=SIZE, y1=SIZE):
+    dp = dst.load()
+    sp = src.load()
+    tr, tg, tb = tint
+    for y in range(max(0, y0), min(SIZE, y1)):
+        for x in range(max(0, x0), min(SIZE, x1)):
+            if mask[y][x]:
+                sr, sg, sb, sa = sp[x, y]
+                lum = int(0.299 * sr + 0.587 * sg + 0.114 * sb)
+                dp[x, y] = (
+                    int((tr * 0.70) + (lum * 0.30)),
+                    int((tg * 0.70) + (lum * 0.30)),
+                    int((tb * 0.70) + (lum * 0.30)),
+                    sa,
+                )
 
 
-def draw_bank_top(img):
-    draw = ImageDraw.Draw(img)
-    draw.rectangle([(0, 0), (SIZE, BANK_BAND)], fill=BANK)
+def fill_band(dst, color, x0, y0, x1, y1):
+    draw = Image.new("RGBA", (x1 - x0, y1 - y0), color)
+    dst.paste(draw, (x0, y0))
 
 
-def draw_bank_bottom(img):
-    draw = ImageDraw.Draw(img)
-    draw.rectangle([(0, SIZE - BANK_BAND), (SIZE, SIZE)], fill=BANK)
+def bank_top(dst):
+    fill_band(dst, BANK_COLOR, 0, 0, SIZE, BANK_BAND)
 
 
-def draw_bank_left(img):
-    draw = ImageDraw.Draw(img)
-    draw.rectangle([(0, 0), (BANK_BAND, SIZE)], fill=BANK)
+def bank_bottom(dst):
+    fill_band(dst, BANK_COLOR, 0, SIZE - BANK_BAND, SIZE, SIZE)
 
 
-def draw_bank_right(img):
-    draw = ImageDraw.Draw(img)
-    draw.rectangle([(SIZE - BANK_BAND, 0), (SIZE, SIZE)], fill=BANK)
+def bank_left(dst):
+    fill_band(dst, BANK_COLOR, 0, 0, BANK_BAND, SIZE)
 
 
-# ---- Generators ------------------------------------------------------------
+def bank_right(dst):
+    fill_band(dst, BANK_COLOR, SIZE - BANK_BAND, 0, SIZE, SIZE)
+
+
+# -------------------------------------------------------------------------
+# Load source art
+# -------------------------------------------------------------------------
+grass = load("empty-green.png")
+hr = load("horizontal-line.png")
+vr = load("vertical-line.png")
+
+corners = {
+    "up_l": load("upper-left-corner.png"),
+    "up_r": load("upper-right-corner.png"),
+    "low_l": load("lower-left-corner.png"),
+    "low_r": load("lower-right-corner.png"),
+}
+
+hr_mask = extract_road_mask(hr, grass)
+vr_mask = extract_road_mask(vr, grass)
+corner_masks = {k: extract_road_mask(v, grass) for k, v in corners.items()}
+
+WATER_TINT = (62, 102, 140)
+BANK_COLOR = (180, 158, 110, 255)
+
+
+# -------------------------------------------------------------------------
+# Straight-road helpers
+# -------------------------------------------------------------------------
+def road_h(dst, left=None, right=None):
+    """Horizontal road band. Crop horizontally with left/right."""
+    x0 = 0 if left is None else left
+    x1 = SIZE if right is None else right
+    copy_masked(dst, hr, hr_mask, x0, 0, x1, SIZE)
+
+
+def road_v(dst, top=None, bottom=None):
+    """Vertical road band. Crop vertically with top/bottom."""
+    y0 = 0 if top is None else top
+    y1 = SIZE if bottom is None else bottom
+    copy_masked(dst, vr, vr_mask, 0, y0, SIZE, y1)
+
+
+def water_h(dst, left=None, right=None):
+    x0 = 0 if left is None else left
+    x1 = SIZE if right is None else right
+    tint_masked(dst, hr, hr_mask, WATER_TINT, x0, 0, x1, SIZE)
+
+
+def water_v(dst, top=None, bottom=None):
+    y0 = 0 if top is None else top
+    y1 = SIZE if bottom is None else bottom
+    tint_masked(dst, vr, vr_mask, WATER_TINT, 0, y0, SIZE, y1)
+
+
+# -------------------------------------------------------------------------
+# Tile generators
+# -------------------------------------------------------------------------
+def make_crossing():
+    img = grass.copy()
+    road_h(img)
+    road_v(img)
+    return img
+
+
+def make_t_up():
+    img = grass.copy()
+    road_h(img)
+    road_v(img, top=0, bottom=HALF)
+    return img
+
+
+def make_t_down():
+    img = grass.copy()
+    road_h(img)
+    road_v(img, top=HALF, bottom=SIZE)
+    return img
+
+
+def make_t_left():
+    img = grass.copy()
+    road_v(img)
+    road_h(img, left=0, right=HALF)
+    return img
+
+
+def make_t_right():
+    img = grass.copy()
+    road_v(img)
+    road_h(img, left=HALF, right=SIZE)
+    return img
+
 
 def make_water_hr():
-    img = Image.new("RGBA", (SIZE, SIZE))
-    fill_grass(img)
-    draw_water_h(img, None, None)
+    img = grass.copy()
+    water_h(img)
     return img
 
 
 def make_water_vr():
-    img = Image.new("RGBA", (SIZE, SIZE))
-    fill_grass(img)
-    draw_water_v(img, None, None)
+    img = grass.copy()
+    water_v(img)
     return img
 
 
 def make_water_corner(corner):
-    """corner in {'up_l','up_r','low_l','low_r'}"""
-    img = Image.new("RGBA", (SIZE, SIZE))
-    fill_grass(img)
-    if corner == "up_l":    # water enters from south and east -> vertical + horizontal
-        draw_water_h(img, top=HALF, bottom=None)   # only the south half
-        draw_water_v(img, left=HALF, right=None)   # only the east half
-    elif corner == "up_r":  # water enters from south and west
-        draw_water_h(img, top=HALF, bottom=None)
-        draw_water_v(img, left=None, right=HALF)
-    elif corner == "low_l": # water exits to south and east
-        draw_water_h(img, top=None, bottom=HALF)
-        draw_water_v(img, left=HALF, right=None)
-    elif corner == "low_r": # water exits to south and west
-        draw_water_h(img, top=None, bottom=HALF)
-        draw_water_v(img, left=None, right=HALF)
+    img = grass.copy()
+    tint_masked(img, corners[corner], corner_masks[corner], WATER_TINT)
     return img
 
 
 def make_road_straight_bank(kind, where):
-    """kind in {'hr','vr'}; where in {'top','bottom','left','right','both'}"""
-    img = Image.new("RGBA", (SIZE, SIZE))
-    fill_grass(img)
+    img = grass.copy()
     if kind == "hr":
-        draw_road_h(img, None, None)
+        road_h(img)
     else:
-        draw_road_v(img, None, None)
-    if where == "top":       draw_bank_top(img)
-    elif where == "bottom":  draw_bank_bottom(img)
-    elif where == "left":    draw_bank_left(img)
-    elif where == "right":   draw_bank_right(img)
-    elif where == "both":    draw_bank_top(img); draw_bank_bottom(img)
-    elif where == "lrboth":  draw_bank_left(img); draw_bank_right(img)
+        road_v(img)
+
+    if where == "top":
+        bank_top(img)
+    elif where == "bottom":
+        bank_bottom(img)
+    elif where == "left":
+        bank_left(img)
+    elif where == "right":
+        bank_right(img)
+    elif where == "both":
+        bank_top(img)
+        bank_bottom(img)
+    elif where == "lrboth":
+        bank_left(img)
+        bank_right(img)
     return img
 
 
 def make_water_straight_bank(kind, where):
-    """kind in {'hr','vr'}; where in {'top','bottom','left','right','both'}"""
-    img = Image.new("RGBA", (SIZE, SIZE))
-    fill_grass(img)
+    img = grass.copy()
     if kind == "hr":
-        draw_water_h(img, None, None)
+        water_h(img)
     else:
-        draw_water_v(img, None, None)
-    if where == "top":       draw_bank_top(img)
-    elif where == "bottom":  draw_bank_bottom(img)
-    elif where == "left":    draw_bank_left(img)
-    elif where == "right":   draw_bank_right(img)
-    elif where == "both":    draw_bank_top(img); draw_bank_bottom(img)
-    elif where == "lrboth":  draw_bank_left(img); draw_bank_right(img)
+        water_v(img)
+
+    if where == "top":
+        bank_top(img)
+    elif where == "bottom":
+        bank_bottom(img)
+    elif where == "left":
+        bank_left(img)
+    elif where == "right":
+        bank_right(img)
+    elif where == "both":
+        bank_top(img)
+        bank_bottom(img)
+    elif where == "lrboth":
+        bank_left(img)
+        bank_right(img)
     return img
 
 
 def make_road_corner_bank(corner, where):
-    """corner in {'up_l','up_r','low_l','low_r'}; where in {'top','bottom','left','right','both'}"""
-    img = Image.new("RGBA", (SIZE, SIZE))
-    fill_grass(img)
-    # road corner
-    if corner == "up_l":
-        draw_road_h(img, top=HALF, bottom=None)
-        draw_road_v(img, left=HALF, right=None)
-    elif corner == "up_r":
-        draw_road_h(img, top=HALF, bottom=None)
-        draw_road_v(img, left=None, right=HALF)
-    elif corner == "low_l":
-        draw_road_h(img, top=None, bottom=HALF)
-        draw_road_v(img, left=HALF, right=None)
-    elif corner == "low_r":
-        draw_road_h(img, top=None, bottom=HALF)
-        draw_road_v(img, left=None, right=HALF)
-    # bank on the named side(s)
-    if where == "top":       draw_bank_top(img)
-    elif where == "bottom":  draw_bank_bottom(img)
-    elif where == "left":    draw_bank_left(img)
-    elif where == "right":   draw_bank_right(img)
-    elif where == "both":    draw_bank_top(img); draw_bank_left(img)  # both EMPTY edges
-    elif where == "tl":      draw_bank_top(img); draw_bank_left(img)
-    elif where == "tr":      draw_bank_top(img); draw_bank_right(img)
-    elif where == "bl":      draw_bank_bottom(img); draw_bank_left(img)
-    elif where == "br":      draw_bank_bottom(img); draw_bank_right(img)
+    img = grass.copy()
+    copy_masked(img, corners[corner], corner_masks[corner])
+
+    if where == "top":
+        bank_top(img)
+    elif where == "bottom":
+        bank_bottom(img)
+    elif where == "left":
+        bank_left(img)
+    elif where == "right":
+        bank_right(img)
+    elif where in ("both", "tl"):
+        bank_top(img)
+        bank_left(img)
+    elif where == "tr":
+        bank_top(img)
+        bank_right(img)
+    elif where == "bl":
+        bank_bottom(img)
+        bank_left(img)
+    elif where == "br":
+        bank_bottom(img)
+        bank_right(img)
     return img
 
 
 def make_water_corner_bank(corner, where):
-    img = Image.new("RGBA", (SIZE, SIZE))
-    fill_grass(img)
-    if corner == "up_l":
-        draw_water_h(img, top=HALF, bottom=None)
-        draw_water_v(img, left=HALF, right=None)
-    elif corner == "up_r":
-        draw_water_h(img, top=HALF, bottom=None)
-        draw_water_v(img, left=None, right=HALF)
-    elif corner == "low_l":
-        draw_water_h(img, top=None, bottom=HALF)
-        draw_water_v(img, left=HALF, right=None)
-    elif corner == "low_r":
-        draw_water_h(img, top=None, bottom=HALF)
-        draw_water_v(img, left=None, right=HALF)
-    if where == "top":       draw_bank_top(img)
-    elif where == "bottom":  draw_bank_bottom(img)
-    elif where == "left":    draw_bank_left(img)
-    elif where == "right":   draw_bank_right(img)
-    elif where == "both":    draw_bank_top(img); draw_bank_left(img)
-    elif where == "tl":      draw_bank_top(img); draw_bank_left(img)
-    elif where == "tr":      draw_bank_top(img); draw_bank_right(img)
-    elif where == "bl":      draw_bank_bottom(img); draw_bank_left(img)
-    elif where == "br":      draw_bank_bottom(img); draw_bank_right(img)
+    img = grass.copy()
+    tint_masked(img, corners[corner], corner_masks[corner], WATER_TINT)
+
+    if where == "top":
+        bank_top(img)
+    elif where == "bottom":
+        bank_bottom(img)
+    elif where == "left":
+        bank_left(img)
+    elif where == "right":
+        bank_right(img)
+    elif where in ("both", "tl"):
+        bank_top(img)
+        bank_left(img)
+    elif where == "tr":
+        bank_top(img)
+        bank_right(img)
+    elif where == "bl":
+        bank_bottom(img)
+        bank_left(img)
+    elif where == "br":
+        bank_bottom(img)
+        bank_right(img)
     return img
 
 
 def make_grass_bank(where):
-    """Grass strip with a bank on the named side."""
-    img = Image.new("RGBA", (SIZE, SIZE))
-    fill_grass(img)
-    if where == "top":       draw_bank_top(img)
-    elif where == "bottom":  draw_bank_bottom(img)
-    elif where == "left":    draw_bank_left(img)
-    elif where == "right":   draw_bank_right(img)
+    img = grass.copy()
+    if where == "top":
+        bank_top(img)
+    elif where == "bottom":
+        bank_bottom(img)
+    elif where == "left":
+        bank_left(img)
+    elif where == "right":
+        bank_right(img)
     return img
 
 
-# ---- File table ------------------------------------------------------------
-# Each entry: (filename, generator_function, args_tuple)
-
+# -------------------------------------------------------------------------
+# Build table
+# -------------------------------------------------------------------------
 TABLE = [
-    # --- Water base (6) ---
-    ("water-hr.png",            make_water_hr, ()),
-    ("water-vr.png",            make_water_vr, ()),
-    ("water-up-l.png",          make_water_corner, ("up_l",)),
-    ("water-up-r.png",          make_water_corner, ("up_r",)),
-    ("water-low-l.png",         make_water_corner, ("low_l",)),
-    ("water-low-r.png",         make_water_corner, ("low_r",)),
+    # Crossing + T-junctions (textured, replacing old solid-color C tool)
+    ("crossing.png", make_crossing, ()),
+    ("t-up.png", make_t_up, ()),
+    ("t-down.png", make_t_down, ()),
+    ("t-left.png", make_t_left, ()),
+    ("t-right.png", make_t_right, ()),
 
-    # --- Road straight bank variants (6) ---
-    ("hr-bank-top.png",         make_road_straight_bank, ("hr", "top")),
-    ("hr-bank-bottom.png",      make_road_straight_bank, ("hr", "bottom")),
-    ("hr-bank-both.png",        make_road_straight_bank, ("hr", "both")),
-    ("vr-bank-left.png",        make_road_straight_bank, ("vr", "left")),
-    ("vr-bank-right.png",       make_road_straight_bank, ("vr", "right")),
-    ("vr-bank-both.png",        make_road_straight_bank, ("vr", "lrboth")),
+    # Water base
+    ("water-hr.png", make_water_hr, ()),
+    ("water-vr.png", make_water_vr, ()),
+    ("water-up-l.png", make_water_corner, ("up_l",)),
+    ("water-up-r.png", make_water_corner, ("up_r",)),
+    ("water-low-l.png", make_water_corner, ("low_l",)),
+    ("water-low-r.png", make_water_corner, ("low_r",)),
 
-    # --- Water straight bank variants (6) ---
-    ("water-hr-bank-top.png",   make_water_straight_bank, ("hr", "top")),
-    ("water-hr-bank-bottom.png",make_water_straight_bank, ("hr", "bottom")),
-    ("water-hr-bank-both.png",  make_water_straight_bank, ("hr", "both")),
-    ("water-vr-bank-left.png",  make_water_straight_bank, ("vr", "left")),
+    # Road straight bank
+    ("hr-bank-top.png", make_road_straight_bank, ("hr", "top")),
+    ("hr-bank-bottom.png", make_road_straight_bank, ("hr", "bottom")),
+    ("hr-bank-both.png", make_road_straight_bank, ("hr", "both")),
+    ("vr-bank-left.png", make_road_straight_bank, ("vr", "left")),
+    ("vr-bank-right.png", make_road_straight_bank, ("vr", "right")),
+    ("vr-bank-both.png", make_road_straight_bank, ("vr", "lrboth")),
+
+    # Water straight bank
+    ("water-hr-bank-top.png", make_water_straight_bank, ("hr", "top")),
+    ("water-hr-bank-bottom.png", make_water_straight_bank, ("hr", "bottom")),
+    ("water-hr-bank-both.png", make_water_straight_bank, ("hr", "both")),
+    ("water-vr-bank-left.png", make_water_straight_bank, ("vr", "left")),
     ("water-vr-bank-right.png", make_water_straight_bank, ("vr", "right")),
-    ("water-vr-bank-both.png",  make_water_straight_bank, ("vr", "lrboth")),
+    ("water-vr-bank-both.png", make_water_straight_bank, ("vr", "lrboth")),
 
-    # --- Road corner bank variants (12) ---
-    ("up-l-bank-top.png",       make_road_corner_bank, ("up_l", "top")),
-    ("up-l-bank-left.png",      make_road_corner_bank, ("up_l", "left")),
-    ("up-l-bank-both.png",      make_road_corner_bank, ("up_l", "tl")),
-    ("up-r-bank-top.png",       make_road_corner_bank, ("up_r", "top")),
-    ("up-r-bank-right.png",     make_road_corner_bank, ("up_r", "right")),
-    ("up-r-bank-both.png",      make_road_corner_bank, ("up_r", "tr")),
-    ("low-l-bank-bottom.png",   make_road_corner_bank, ("low_l", "bottom")),
-    ("low-l-bank-left.png",     make_road_corner_bank, ("low_l", "left")),
-    ("low-l-bank-both.png",     make_road_corner_bank, ("low_l", "bl")),
-    ("low-r-bank-bottom.png",   make_road_corner_bank, ("low_r", "bottom")),
-    ("low-r-bank-right.png",    make_road_corner_bank, ("low_r", "right")),
-    ("low-r-bank-both.png",     make_road_corner_bank, ("low_r", "br")),
+    # Road corner bank
+    ("up-l-bank-top.png", make_road_corner_bank, ("up_l", "top")),
+    ("up-l-bank-left.png", make_road_corner_bank, ("up_l", "left")),
+    ("up-l-bank-both.png", make_road_corner_bank, ("up_l", "tl")),
+    ("up-r-bank-top.png", make_road_corner_bank, ("up_r", "top")),
+    ("up-r-bank-right.png", make_road_corner_bank, ("up_r", "right")),
+    ("up-r-bank-both.png", make_road_corner_bank, ("up_r", "tr")),
+    ("low-l-bank-bottom.png", make_road_corner_bank, ("low_l", "bottom")),
+    ("low-l-bank-left.png", make_road_corner_bank, ("low_l", "left")),
+    ("low-l-bank-both.png", make_road_corner_bank, ("low_l", "bl")),
+    ("low-r-bank-bottom.png", make_road_corner_bank, ("low_r", "bottom")),
+    ("low-r-bank-right.png", make_road_corner_bank, ("low_r", "right")),
+    ("low-r-bank-both.png", make_road_corner_bank, ("low_r", "br")),
 
-    # --- Water corner bank variants (12) ---
-    ("water-up-l-bank-top.png",      make_water_corner_bank, ("up_l", "top")),
-    ("water-up-l-bank-left.png",     make_water_corner_bank, ("up_l", "left")),
-    ("water-up-l-bank-both.png",     make_water_corner_bank, ("up_l", "tl")),
-    ("water-up-r-bank-top.png",      make_water_corner_bank, ("up_r", "top")),
-    ("water-up-r-bank-right.png",    make_water_corner_bank, ("up_r", "right")),
-    ("water-up-r-bank-both.png",     make_water_corner_bank, ("up_r", "tr")),
-    ("water-low-l-bank-bottom.png",  make_water_corner_bank, ("low_l", "bottom")),
-    ("water-low-l-bank-left.png",    make_water_corner_bank, ("low_l", "left")),
-    ("water-low-l-bank-both.png",    make_water_corner_bank, ("low_l", "bl")),
-    ("water-low-r-bank-bottom.png",  make_water_corner_bank, ("low_r", "bottom")),
-    ("water-low-r-bank-right.png",   make_water_corner_bank, ("low_r", "right")),
-    ("water-low-r-bank-both.png",    make_water_corner_bank, ("low_r", "br")),
+    # Water corner bank
+    ("water-up-l-bank-top.png", make_water_corner_bank, ("up_l", "top")),
+    ("water-up-l-bank-left.png", make_water_corner_bank, ("up_l", "left")),
+    ("water-up-l-bank-both.png", make_water_corner_bank, ("up_l", "tl")),
+    ("water-up-r-bank-top.png", make_water_corner_bank, ("up_r", "top")),
+    ("water-up-r-bank-right.png", make_water_corner_bank, ("up_r", "right")),
+    ("water-up-r-bank-both.png", make_water_corner_bank, ("up_r", "tr")),
+    ("water-low-l-bank-bottom.png", make_water_corner_bank, ("low_l", "bottom")),
+    ("water-low-l-bank-left.png", make_water_corner_bank, ("low_l", "left")),
+    ("water-low-l-bank-both.png", make_water_corner_bank, ("low_l", "bl")),
+    ("water-low-r-bank-bottom.png", make_water_corner_bank, ("low_r", "bottom")),
+    ("water-low-r-bank-right.png", make_water_corner_bank, ("low_r", "right")),
+    ("water-low-r-bank-both.png", make_water_corner_bank, ("low_r", "br")),
 
-    # --- Grass bank tiles (4) ---
-    ("grass-bank-top.png",      make_grass_bank, ("top",)),
-    ("grass-bank-bottom.png",   make_grass_bank, ("bottom",)),
-    ("grass-bank-left.png",     make_grass_bank, ("left",)),
-    ("grass-bank-right.png",    make_grass_bank, ("right",)),
+    # Grass bank
+    ("grass-bank-top.png", make_grass_bank, ("top",)),
+    ("grass-bank-bottom.png", make_grass_bank, ("bottom",)),
+    ("grass-bank-left.png", make_grass_bank, ("left",)),
+    ("grass-bank-right.png", make_grass_bank, ("right",)),
 ]
 
 
 def main():
-    if not os.path.isdir(OUT_DIR):
-        os.makedirs(OUT_DIR, exist_ok=True)
     for name, gen, args in TABLE:
         img = gen(*args)
-        path = os.path.join(OUT_DIR, name)
-        img.save(path, "PNG")
-        print("wrote", path)
-    print(f"\nDone: {len(TABLE)} new tile PNGs in {OUT_DIR}")
+        save(img, name)
+    print(f"\nDone: {len(TABLE)} tiles")
 
 
 if __name__ == "__main__":
