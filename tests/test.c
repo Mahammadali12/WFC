@@ -204,7 +204,6 @@ int main(void)
         if (t == TILE_GRASS_BANK_TOP && banks != 1) assert(0 && "GRASS_BANK_TOP should have 1 bank");
     }
 
-    printf("All %d tests passed.
-", 73);
+    printf("All %d tests passed.", 73);
     return 0;
 }
