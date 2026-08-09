@@ -1,2 +1,28 @@
-bin
+# Build outputs
+bin/
 main
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Emscripten / web build artifacts
+# NOTE: web/index.html, .js, .wasm, .data are committed on purpose so the
+# Pages deploy workflow can publish them without re-installing emcc.
+# Only ignore the local-only shell.html template copy.
+web/shell.html
+
+# Editor / OS junk
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# raylib generated stuff
+raylib_cache/
+raylib.o
