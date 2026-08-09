@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Minimal tile generator: only creates tiles that need unique art.
-Bank variants reuse base PNGs (configured in main.c TILE_TEXTURE_FILES).
+Bank variants reuse base PNGs (configured in src/main.c TILE_TEXTURE_FILES).
 """
 
 import os
@@ -10,7 +10,7 @@ from PIL import Image
 SIZE = 256
 HALF = 128
 
-BASE_DIR = os.path.join(os.path.dirname(__file__), "..", "tilesets")
+BASE_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "tilesets")
 
 
 def load(name):
