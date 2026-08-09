@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install raylib (apt)
+        run: sudo apt-get update && sudo apt-get install -y libraylib-dev
+
+      - name: Build & run tests
+        run: make test
+
+      - name: Build the desktop binary
+        run: make
+
+      - name: Verify web build
+        run: |
+          if [ -d "vendor/raylib-6.0-web" ]; then
+            echo "Web vendor present, skipping emcc (heavy install)"
+            ls -la vendor/raylib-6.0-web
+          else
+            echo "No web vendor; skipping wasm build"
+          fi
