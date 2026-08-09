@@ -8,7 +8,9 @@
 
 typedef enum {
     EDGE_EMPTY = 0,
-    EDGE_ROAD = 1
+    EDGE_ROAD  = 1,
+    EDGE_WATER = 2,
+    EDGE_BANK  = 3
 } EdgeType;
 
 typedef enum {

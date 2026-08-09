@@ -73,8 +73,13 @@ Direction get_opposite_direction(Direction direction)
     return DIR_TOP; // fallback, should never hit
 }
 
-// Strict edge equality: the edge of tile1 facing 'dir' must equal the edge of
-// tile2 facing the opposite direction.
+// Strict edge equality across all four edge types.
+// Why equality still works with 4 types: a contact is "valid" iff the two
+// cells agree on the shared edge. EMPTY-EMPTY = grass next to grass, ROAD-ROAD
+// = road continues, WATER-WATER = water continues, BANK-BANK = continuous bank
+// strip. There is no case where we need an asymmetric rule (e.g. BANK matching
+// EMPTY) because every cell that needs to face a BANK edge is given its own
+// bank-grass tile variant (see GRASS_BANK_* in the taxonomy doc).
 bool can_be_adjacent(TileType tile1, TileType tile2, Direction dir)
 {
     return get_edge(tile1, dir) == get_edge(tile2, get_opposite_direction(dir));
