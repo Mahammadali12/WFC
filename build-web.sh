@@ -8,7 +8,7 @@ fi
 
 mkdir -p web
 
-emcc main.c queue.c -o web/index.html \
+emcc main.c queue.c tiles.c -o web/index.html \
     -Os -Wall \
     -DPLATFORM_WEB \
     -I vendor/raylib-6.0-web/include \
