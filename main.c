@@ -679,15 +679,17 @@ CellPos get_neighbor(CellPos pos, Direction dir)
 void propagate_cell(CellPos start)
 {
     Queue q;
-    if (!queue_init(&q, GRID_SIZE * GRID_SIZE * 4)) return;
+    if (!queue_init(&q, GRID_SIZE * GRID_SIZE * 16)) return;
     queue_enqueue(&q, start);
 
     while (!queue_is_empty(&q))
     {
         CellPos current;
         queue_dequeue(&q, &current);
+
         Cell *cell = &grid[current.x][current.y];
-        if (!cell->collapsed) continue;
+        if (cell->entropy == 0 && !cell->collapsed)
+            continue;  // dead cell, nothing to propagate
 
         for (int d = 0; d < 4; d++)
         {
@@ -699,19 +701,34 @@ void propagate_cell(CellPos start)
                 continue;
 
             Cell *neighbor = &grid[neighbor_pos.x][neighbor_pos.y];
-            if (neighbor->collapsed) continue;
+            if (neighbor->collapsed)
+                continue;
 
             uint64_t new_possible = 0;
             for (int t = 0; t < TILE_COUNT; t++)
             {
-                if (neighbor->possible_tiles & (1ULL << t))
+                if (!(neighbor->possible_tiles & (1ULL << t)))
+                    continue;
+
+                // Is ANY tile in cell's possible set compatible with neighbor tile t?
+                bool ok = false;
+                for (int s = 0; s < TILE_COUNT; s++)
                 {
-                    if (can_be_adjacent(cell->tile, (TileType)t, dir))
-                        new_possible |= (1ULL << t);
+                    if (cell->possible_tiles & (1ULL << s))
+                    {
+                        if (can_be_adjacent((TileType)s, (TileType)t, dir))
+                        {
+                            ok = true;
+                            break;
+                        }
+                    }
                 }
+                if (ok)
+                    new_possible |= (1ULL << t);
             }
 
-            if (new_possible == neighbor->possible_tiles) continue;
+            if (new_possible == neighbor->possible_tiles)
+                continue;
 
             neighbor->possible_tiles = new_possible;
             neighbor->entropy = tile_popcount(new_possible);
