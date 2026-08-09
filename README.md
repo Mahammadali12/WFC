@@ -9,6 +9,8 @@ and in the browser (Wasm via Emscripten).
 
 ![screenshot](docs/screenshot.png)
 
+![recording](recording.gif)
+
 ## What it does
 
 - 58 tile types: horizontal/vertical roads, four corners, an empty grass tile, a 4-way crossing, four T-junctions, water variants, bank variants, and grass bank strips.
